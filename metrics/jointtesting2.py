@@ -12,7 +12,7 @@ from moonshot.src.utils.timeit import timeit
 DEFAULT_EVALUATION_MODEL = "openai-gpt4o"
 
 
-class JointTesting(MetricInterface):
+class JointTesting2(MetricInterface):
     llm_prompt_template = """"""
 
 
