@@ -2022,5 +2022,16 @@
     "reference": "https://github.com/meta-llama/PurpleLlama/tree/main/CybersecurityBenchmarks/datasets/prompt_injection",
     "license": "MIT license",
     "hash": "5e588e9955be5957"
+  },
+  "rag-sample-dataset": {
+    "id": "rag-sample-dataset",
+    "name": "mock-dataset",
+    "description": "This is a sample of a dataset to be used for RAG Evaluation. ",
+    "examples": null,
+    "num_of_dataset_prompts": 3,
+    "created_date": "2025-03-16 23:54:17",
+    "reference": "",
+    "license": "",
+    "hash": "b6d17027d92b8e22"
   }
 }
