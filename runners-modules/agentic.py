@@ -10,6 +10,9 @@ from itertools import groupby
 from operator import attrgetter
 from typing import Any, AsyncGenerator
 
+
+from crewai import Crew, Agent, Task, Process
+
 from jinja2 import Template
 from moonshot.src.configs.env_variables import EnvVariables
 from moonshot.src.connectors.connector import Connector
@@ -366,6 +369,8 @@ class Agentic:
         logger.debug("[Agentic] Load required instances...")
         start_time = time.perf_counter()
         self.recipe_instance = None
+        
+        self.agents = None
         try:
             # Load recipe
             self.recipe_instance = Recipe.load(recipe_name)
@@ -381,7 +386,7 @@ class Agentic:
             logger.debug(
                 f"[Agentic] Load recipe metrics took {(time.perf_counter() - start_time):.4f}s"
             )
-
+            
         except Exception as e:
             self.run_progress.notify_error(
                 f"[Agentic] Failed to load instances in running recipe due to error: {str(e)}"
@@ -542,6 +547,7 @@ class Agentic:
             # Generate prompts based on datasets and replacement in prompt templates
             gen_prompt = self._generate_prompts()
 
+            gen_agent = self._create_agents_for_query()
             # Create an asynchronous queue
             queue = asyncio.Queue(
                 maxsize=Agentic.QUEUE_SIZE
@@ -587,7 +593,7 @@ class Agentic:
 
                     # Dispatch the batch to all connectors
                     batch_tasks = [
-                        self._generate_predictions(batch, connector, cancel_event)
+                        self._generate_predictions(batch, connector,gen_agent, cancel_event,)
                         for connector in self.recipe_connectors
                     ]
                     results = await asyncio.gather(*batch_tasks, return_exceptions=True)
@@ -713,6 +719,30 @@ class Agentic:
                         )
                         yield prompt_args
 
+
+
+    async def _create_crew_for_query(self,connector: Connector):
+        for ds_id in self.recipe_instance.datasets:
+            ds_args = Dataset.read(ds_id)
+            endpoint = connector.endpoint
+            token = connector.token
+            agents = []
+            tasks = []
+            crew = None
+            for p in ds_args.agents:
+                agent = Agent(
+                name=p["name"],
+                role=p["role"],
+                goal=p["goal"],
+                backstory=p["backstory"],
+                llm = llm
+                )
+                task = Task(p["desc"],p["expected_output"],agent,context=[:-1])
+                agents.append(agent)
+                tasks.append(task)
+            crew = Crew(agents=agents,tasks=tasks,process=Process.sequential)
+            return crew
+
     async def _get_dataset_prompts(
         self, ds_id: str
     ) -> AsyncGenerator[tuple[int, dict], None]:
@@ -732,7 +762,7 @@ class Agentic:
         """
         # Retrieve dataset arguments
         ds_args = Dataset.read(ds_id)
-
+        
         if ds_args.num_of_dataset_prompts == 0:
             prompt_indices = []
         else:
@@ -761,6 +791,9 @@ class Agentic:
             if prompts_gen_index in prompt_indices:
                 yield prompts_gen_index, prompts_data
             prompts_gen_index += 1
+        
+        # Adding agents here because their infomation is from the dataset
+        
 
     async def _yield_prompt_arguments(
         self,
@@ -807,6 +840,7 @@ class Agentic:
         self,
         prompt_batch: list[PromptArguments],
         connector: Connector,
+        agents, # put a type in here
         cancel_event: asyncio.Event,
     ) -> list:
         """
@@ -826,7 +860,7 @@ class Agentic:
         """
         # Create a coroutine for each prompt in the batch
         tasks = [
-            self._process_single_prompt(prompt_info, connector, cancel_event)
+            self._process_single_prompt(prompt_info, connector,agent cancel_event)
             for prompt_info in prompt_batch
         ]
 
@@ -846,10 +880,12 @@ class Agentic:
 
         return processed_results
 
+
     async def _process_single_prompt(
         self,
         prompt_info: PromptArguments,
         connector: Connector,
+        agent, # put a type here
         cancel_event: asyncio.Event,
     ) -> PromptArguments | None:
         """
@@ -877,40 +913,49 @@ class Agentic:
         # Create a new prompt info with connection id
         new_prompt_info = copy.deepcopy(prompt_info)
         new_prompt_info.conn_id = connector.id
-
+        cache_record = None
+        
         # Attempt to read from database for cache values
-        try:
-            cache_record = Storage.read_database_record(
-                self.database_instance,
-                (
-                    new_prompt_info.conn_id,
-                    new_prompt_info.rec_id,
-                    new_prompt_info.ds_id,
-                    new_prompt_info.pt_id,
-                    new_prompt_info.connector_prompt.prompt,
-                ),
-                Agentic.sql_read_runner_cache_record,
-            )
-        except Exception as e:
-            self.run_progress.notify_error(
-                f"[Agentic] Error while reading benchmark cache record for prompt_info "
-                f"[conn_id: {new_prompt_info.conn_id}, rec_id: {new_prompt_info.rec_id}, "
-                f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
-                f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
-            )
-            cache_record = None
+#        try:
+#            cache_record = Storage.read_database_record(
+#                self.database_instance,
+#                (
+#                    new_prompt_info.conn_id,
+#                    new_prompt_info.rec_id,
+#                    new_prompt_info.ds_id,
+#                    new_prompt_info.pt_id,
+#                    new_prompt_info.connector_prompt.prompt,
+#                ),
+#                Agentic.sql_read_runner_cache_record,
+#            )
+#        except Exception as e:
+#            self.run_progress.notify_error(
+#                f"[Agentic] Error while reading agentic cache record for prompt_info "
+#                f"[conn_id: {new_prompt_info.conn_id}, rec_id: {new_prompt_info.rec_id}, "
+#                f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
+#                f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
+#            )
+#            cache_record = None
 
         # If cache record does not exist, perform prediction and cache the result
         if cache_record is None:
+            # create agents here,
+            # create tasks here
+            # create crew here
+            # execute the workflow here
+
             try:
+           #     short circuiting the connector because crewai will handle it
                 new_prompt_info.connector_prompt = await Connector.get_prediction(
                     new_prompt_info.connector_prompt, connector
                 )
-                Storage.create_database_record(
-                    self.database_instance,
-                    new_prompt_info.to_tuple(),
-                    Agentic.sql_create_runner_cache_record,
-                )
+
+
+           #     Storage.create_database_record(
+           #         self.database_instance,
+           #         new_prompt_info.to_tuple(),
+           #         Agentic.sql_create_runner_cache_record,
+           #     )
             except Exception as e:
                 self.run_progress.notify_error(
                     f"[Agentic] Failed to generate prediction for prompt_info "
