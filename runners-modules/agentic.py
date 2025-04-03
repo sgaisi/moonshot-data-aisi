@@ -11,7 +11,8 @@ from operator import attrgetter
 from typing import Any, AsyncGenerator
 
 
-from crewai import Crew, Agent, Task, Process
+from crewai import Crew, Agent, Task, Process,LLM
+from moonshot.src.tools import get_all_tools
 
 from jinja2 import Template
 from moonshot.src.configs.env_variables import EnvVariables
@@ -547,7 +548,7 @@ class Agentic:
             # Generate prompts based on datasets and replacement in prompt templates
             gen_prompt = self._generate_prompts()
 
-            gen_agent = self._create_agents_for_query()
+            gen_crew = await self._create_crew_for_query(self.recipe_connectors[0])
             # Create an asynchronous queue
             queue = asyncio.Queue(
                 maxsize=Agentic.QUEUE_SIZE
@@ -593,7 +594,7 @@ class Agentic:
 
                     # Dispatch the batch to all connectors
                     batch_tasks = [
-                        self._generate_predictions(batch, connector,gen_agent, cancel_event,)
+                        self._generate_predictions(batch, connector,gen_crew, cancel_event,)
                         for connector in self.recipe_connectors
                     ]
                     results = await asyncio.gather(*batch_tasks, return_exceptions=True)
@@ -722,25 +723,43 @@ class Agentic:
 
 
     async def _create_crew_for_query(self,connector: Connector):
+        tools = get_all_tools()
         for ds_id in self.recipe_instance.datasets:
             ds_args = Dataset.read(ds_id)
-            endpoint = connector.endpoint
-            token = connector.token
             agents = []
             tasks = []
             crew = None
+            # temperature should be more easily modified than coupled to the connector.
+            llm = LLM(
+                model=connector.model,
+                temperature=0.2,
+                base_url=connector.endpoint,
+                api_key=connector.token
+
+            )
             for p in ds_args.agents:
                 agent = Agent(
                 name=p["name"],
                 role=p["role"],
                 goal=p["goal"],
                 backstory=p["backstory"],
+                allow_delegation=False,
                 llm = llm
                 )
-                task = Task(p["desc"],p["expected_output"],agent,context=[:-1])
+
+                if("Tool" in agent.role):
+                    agent.tools=tools
+
+                task = Task(
+                    description = p["desc"],
+                    expected_output = p["expected_output"],
+                    agent = agent,
+                    context = tasks
+                    )
                 agents.append(agent)
                 tasks.append(task)
             crew = Crew(agents=agents,tasks=tasks,process=Process.sequential)
+
             return crew
 
     async def _get_dataset_prompts(
@@ -840,7 +859,7 @@ class Agentic:
         self,
         prompt_batch: list[PromptArguments],
         connector: Connector,
-        agents, # put a type in here
+        crew, # put a type in here
         cancel_event: asyncio.Event,
     ) -> list:
         """
@@ -860,7 +879,7 @@ class Agentic:
         """
         # Create a coroutine for each prompt in the batch
         tasks = [
-            self._process_single_prompt(prompt_info, connector,agent cancel_event)
+            self._process_single_prompt(prompt_info, connector,crew, cancel_event)
             for prompt_info in prompt_batch
         ]
 
@@ -885,7 +904,7 @@ class Agentic:
         self,
         prompt_info: PromptArguments,
         connector: Connector,
-        agent, # put a type here
+        crew, # put a type here
         cancel_event: asyncio.Event,
     ) -> PromptArguments | None:
         """
@@ -943,14 +962,76 @@ class Agentic:
             # create tasks here
             # create crew here
             # execute the workflow here
-
             try:
+                query = new_prompt_info.connector_prompt.prompt
+                tasks = []
+                #replaces the query with query
+                for task in crew.tasks:
+                    desc = task.description
+                    desc = desc.replace("{query}",query)
+                    #replaces the description of the task
+                    task.description = desc
+                    #append this into tasks
+                    tasks.append(task)
+                #replace crew tasks with the new task with query
+                crew.tasks = tasks
+
+                crew_output = crew.kickoff()
+                final_answer = str(crew_output)
+
+                planner_plan = ""
+                tool_selector_tools = []
+                tool_executions = []
+                response_generator_response = final_answer  # Assuming final_answer is the response
+
            #     short circuiting the connector because crewai will handle it
-                new_prompt_info.connector_prompt = await Connector.get_prediction(
-                    new_prompt_info.connector_prompt, connector
-                )
 
 
+                for task in crew.tasks:
+                    logger.info(task.agent.role)
+                    logger.info(task.description)
+                    logger.info(task.output.raw)
+                    logger.info(len(task.context))
+                    logger.info("\n")
+                    #if task.agent.role == "Task Planner":
+                    #    logger.info(task.output.raw)
+                    #    planner_plan = task.output.raw  # Store planner's output
+                    #elif task.agent.role == "Tool Selector":
+                    #    logger.info("Test2")
+                    #    tool_selector_tools.append(task.output.raw)  # Store tool selector's output
+                    #elif task.agent.role == "Tool Executor":
+                    #    logger.info("Test3")
+                    #    tool_executions.append(task.output.raw)  # Store too executor's output
+                        
+                log_entry = {
+                    "query": query,
+                    "agents": {
+                    "planner": {
+                    "role": "Task Planner",
+                    "plan": planner_plan
+                    },
+                    "tool_selector": {
+                        "role": "Tool Selector",
+                        "tools selected": tool_selector_tools  # List of tools selected
+                    },
+                    "executor": {
+                        "role": "Tool Executor",
+                        "executions": tool_executions  # List of tool executions
+                    },
+                    "response_generator": {
+                        "role": "Response Generator",
+                        "response": response_generator_response  # Final response
+                    }
+                    },
+                }
+              #  logger.info(log_entry['agents']['planner']['plan'])
+              #  logger.info(log_entry['agents']['tool_selector']['tools selected'])
+              #  logger.info(log_entry['agents']['executor']['executions'])
+              #  logger.info(log_entry['agents']['response_generator']['response'])
+
+              #  new_prompt_info.connector_prompt = await Connector.get_prediction(
+              #      new_prompt_info.connector_prompt, connector
+              #  )
            #     Storage.create_database_record(
            #         self.database_instance,
            #         new_prompt_info.to_tuple(),
