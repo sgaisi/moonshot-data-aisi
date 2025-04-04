@@ -548,7 +548,6 @@ class Agentic:
             # Generate prompts based on datasets and replacement in prompt templates
             gen_prompt = self._generate_prompts()
 
-            gen_crew = await self._create_crew_for_query(self.recipe_connectors[0])
             # Create an asynchronous queue
             queue = asyncio.Queue(
                 maxsize=Agentic.QUEUE_SIZE
@@ -594,7 +593,7 @@ class Agentic:
 
                     # Dispatch the batch to all connectors
                     batch_tasks = [
-                        self._generate_predictions(batch, connector,gen_crew, cancel_event,)
+                        self._generate_predictions(batch, connector, cancel_event,)
                         for connector in self.recipe_connectors
                     ]
                     results = await asyncio.gather(*batch_tasks, return_exceptions=True)
@@ -859,7 +858,6 @@ class Agentic:
         self,
         prompt_batch: list[PromptArguments],
         connector: Connector,
-        crew, # put a type in here
         cancel_event: asyncio.Event,
     ) -> list:
         """
@@ -879,7 +877,7 @@ class Agentic:
         """
         # Create a coroutine for each prompt in the batch
         tasks = [
-            self._process_single_prompt(prompt_info, connector,crew, cancel_event)
+            self._process_single_prompt(prompt_info, connector, cancel_event)
             for prompt_info in prompt_batch
         ]
 
@@ -904,7 +902,6 @@ class Agentic:
         self,
         prompt_info: PromptArguments,
         connector: Connector,
-        crew, # put a type here
         cancel_event: asyncio.Event,
     ) -> PromptArguments | None:
         """
@@ -934,6 +931,9 @@ class Agentic:
         new_prompt_info.conn_id = connector.id
         cache_record = None
         
+        #create a crew
+        crew = await self._create_crew_for_query(self.recipe_connectors[0])
+
         # Attempt to read from database for cache values
 #        try:
 #            cache_record = Storage.read_database_record(
@@ -988,20 +988,20 @@ class Agentic:
 
 
                 for task in crew.tasks:
-                    logger.info(task.agent.role)
-                    logger.info(task.description)
-                    logger.info(task.output.raw)
-                    logger.info(len(task.context))
-                    logger.info("\n")
-                    #if task.agent.role == "Task Planner":
-                    #    logger.info(task.output.raw)
-                    #    planner_plan = task.output.raw  # Store planner's output
-                    #elif task.agent.role == "Tool Selector":
-                    #    logger.info("Test2")
-                    #    tool_selector_tools.append(task.output.raw)  # Store tool selector's output
-                    #elif task.agent.role == "Tool Executor":
-                    #    logger.info("Test3")
-                    #    tool_executions.append(task.output.raw)  # Store too executor's output
+               #     logger.info(task.agent.role)
+               #     logger.info(task.description)
+               #     logger.info(task.output.raw)
+               #     logger.info(len(task.context))
+               #     logger.info("\n")
+                    if task.agent.role == "Task Planner":
+                        #logger.info(task.output.raw)
+                        planner_plan = task.output.raw  # Store planner's output
+                    elif task.agent.role == "Tool Selector":
+                        #logger.info("Test2")
+                        tool_selector_tools.append(task.output.raw)  # Store tool selector's output
+                    elif task.agent.role == "Tool Executor":
+                        #logger.info("Test3")
+                        tool_executions.append(task.output.raw)  # Store too executor's output
                         
                 log_entry = {
                     "query": query,
@@ -1024,9 +1024,19 @@ class Agentic:
                     }
                     },
                 }
-              #  logger.info(log_entry['agents']['planner']['plan'])
-              #  logger.info(log_entry['agents']['tool_selector']['tools selected'])
-              #  logger.info(log_entry['agents']['executor']['executions'])
+
+                new_prompt_info.connector_prompt = ConnectorPromptArguments(
+                    prompt_index = new_prompt_info.connector_prompt.prompt_index,
+                    prompt = query,
+                    target = new_prompt_info.connector_prompt.target,
+                    predicted_results = ConnectorResponse(
+                        response = final_answer,
+                        context = [log_entry]
+                    )
+                )
+               # logger.info(log_entry['agents']['planner']['plan'])
+               # logger.info(log_entry['agents']['tool_selector']['tools selected'])
+               # logger.info(log_entry['agents']['executor']['executions'])
               #  logger.info(log_entry['agents']['response_generator']['response'])
 
               #  new_prompt_info.connector_prompt = await Connector.get_prediction(
