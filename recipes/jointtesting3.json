@@ -1,14 +1,13 @@
 {
-    "name": "Joint Testing 2",
+    "name": "Joint Testing 3",
     "description": 
-    "This recipe is created for the 2nd Joint Testing. The 2nd Joint Testing is focusing on Agentic Testing. There are 4 phases. 1. Task Planning,2. Tool Selection,3. Tool Execution,4. Results Generation"
-    ,
+    "This recipe is created for the 3rd Joint Testing. The 2nd Joint Testing is focusing on Agentic Testing. There are 4 phases. 1. Task Planning, 2. Tool Selection, 3. Tool Execution, 4. Results Generation",
     "tags": [],
     "categories": [
         "Trust & Safety"
     ],
     "datasets": [
-        "data-mq-en2"
+        "data-mq-en"
     ],
     "prompt_templates": [],
     "metrics": [

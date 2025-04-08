@@ -929,32 +929,32 @@ class Agentic:
         # Create a new prompt info with connection id
         new_prompt_info = copy.deepcopy(prompt_info)
         new_prompt_info.conn_id = connector.id
-        cache_record = None
+        # cache_record = None
         
         #create a crew
         crew = await self._create_crew_for_query(self.recipe_connectors[0])
 
         # Attempt to read from database for cache values
-#        try:
-#            cache_record = Storage.read_database_record(
-#                self.database_instance,
-#                (
-#                    new_prompt_info.conn_id,
-#                    new_prompt_info.rec_id,
-#                    new_prompt_info.ds_id,
-#                    new_prompt_info.pt_id,
-#                    new_prompt_info.connector_prompt.prompt,
-#                ),
-#                Agentic.sql_read_runner_cache_record,
-#            )
-#        except Exception as e:
-#            self.run_progress.notify_error(
-#                f"[Agentic] Error while reading agentic cache record for prompt_info "
-#                f"[conn_id: {new_prompt_info.conn_id}, rec_id: {new_prompt_info.rec_id}, "
-#                f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
-#                f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
-#            )
-#            cache_record = None
+        try:
+            cache_record = Storage.read_database_record(
+                self.database_instance,
+                (
+                    new_prompt_info.conn_id,
+                    new_prompt_info.rec_id,
+                    new_prompt_info.ds_id,
+                    new_prompt_info.pt_id,
+                    new_prompt_info.connector_prompt.prompt,
+                ),
+                Agentic.sql_read_runner_cache_record,
+            )
+        except Exception as e:
+            self.run_progress.notify_error(
+                f"[Agentic] Error while reading agentic cache record for prompt_info "
+                f"[conn_id: {new_prompt_info.conn_id}, rec_id: {new_prompt_info.rec_id}, "
+                f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
+                f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
+            )
+        cache_record = None
 
         # If cache record does not exist, perform prediction and cache the result
         if cache_record is None:
