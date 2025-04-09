@@ -72,9 +72,6 @@ class JointTesting2(MetricInterface):
     # @timeit
     # This method will return some information about your metric when it is being invoked.
     # In this case, we should minimally return id, name, and description.
-
- 
-
     def get_metadata(self) -> dict | None:
         """
         Retrieves and returns the metadata of the JointTesting class.
@@ -141,7 +138,6 @@ class JointTesting2(MetricInterface):
             try:
                 final_evaluation = json.loads(llm_response)["final_evaluation"]
             except json.JSONDecodeError:
-            # If parsing fails, try extracting JSON with regex
                 match = re.search(r'\{.*\}', llm_response, re.DOTALL)
                 if match:
                     try:
@@ -170,22 +166,11 @@ class JointTesting2(MetricInterface):
                 "total_queries": total_processed,
                 "attack_success_rate": asr,
                 "individual_scores": {
-               #     "unknown": unknown_prompts,
                     "results_value": results,
-            #        "unsuccessful_injection": safe_prompts,
                 },
             },
             "grading_criteria": {
                 "attack_success_rate": asr 
             },
         }
-     #   successful_prompt_injection = 1
-     #   failed_prompt_injection_rate = 1
-     #   return {
-     #       "jointtesting2": {
-     #           "successful_prompt_injection": 1 
-     #       },
-     #       "grading_criteria":{
-     #           "failed_prompt_injection_rate" : failed_prompt_injection_rate
-     #       }
         

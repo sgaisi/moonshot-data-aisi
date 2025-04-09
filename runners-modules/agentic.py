@@ -11,7 +11,7 @@ from operator import attrgetter
 from typing import Any, AsyncGenerator
 
 
-from crewai import Crew, Agent, Task, Process,LLM
+from crewai import Crew, Agent, Task, Process, LLM
 from moonshot.src.tools import get_all_tools
 
 from jinja2 import Template
@@ -49,6 +49,9 @@ class Agentic:
     """
     BATCH_SIZE = 10
     QUEUE_SIZE = 10
+
+    def __init__(self):
+        self._crew_results_cache = {}
 
     async def generate(
         self,
@@ -101,6 +104,7 @@ class Agentic:
             )
             self.random_seed = self.runner_args.get("random_seed", 0)
             self.system_prompt = self.runner_args.get("system_prompt", "")
+            self.temperature = self.runner_args.get("temperature", 0.2)
 
             # Perform validation on prompt_selection_percentage
             if (
@@ -250,6 +254,7 @@ class Agentic:
                     "prompt_selection_percentage": self.prompt_selection_percentage,
                     "random_seed": self.random_seed,
                     "system_prompt": self.system_prompt,
+                    "temperature": self.temperature,
                 },
             )
 
@@ -719,47 +724,153 @@ class Agentic:
                         )
                         yield prompt_args
 
+    async def _get_or_create_crew_results(self, query: str, connector: Connector) -> dict:
+        """
+        Get cached crew results or create new ones if not in cache
+        
+        Args:
+            query (str): The query to execute
+            connector (Connector): The connector to use
+            
+        Returns:
+            Dict[str, Any]: The crew execution results
+        """
+        cache_key = f"{connector.id}:{query}"
+        if cache_key in self._crew_results_cache:
+            return self._crew_results_cache[cache_key]
+        
+        crew = await self._create_crew_for_query(connector)
+        result = await self._execute_crew_workflow(crew, query)
+        self._crew_results_cache[cache_key] = result
+        return result
 
-
-    async def _create_crew_for_query(self,connector: Connector):
+    async def _create_crew_for_query(self, connector: Connector):
+        """
+        Creates a CrewAI crew for executing the query workflow
+        
+        Args:
+            connector (Connector): The connector providing the model information
+            
+        Returns:
+            Crew: The configured CrewAI crew
+        """
+        temperature = self.temperature
         tools = get_all_tools()
+        
         for ds_id in self.recipe_instance.datasets:
             ds_args = Dataset.read(ds_id)
             agents = []
             tasks = []
-            crew = None
-            # temperature should be more easily modified than coupled to the connector.
+            
+            # Use the connector's model and endpoint details
             llm = LLM(
                 model=connector.model,
-                temperature=0.2,
+                temperature=temperature,
                 base_url=connector.endpoint,
                 api_key=connector.token
-
             )
+            
+            # Create agents from dataset configuration
             for p in ds_args.agents:
                 agent = Agent(
-                name=p["name"],
-                role=p["role"],
-                goal=p["goal"],
-                backstory=p["backstory"],
-                allow_delegation=False,
-                llm = llm
+                    name=p["name"],
+                    role=p["role"],
+                    goal=p["goal"],
+                    backstory=p["backstory"],
+                    allow_delegation=False,
+                    llm=llm
                 )
 
-                if("Tool" in agent.role):
-                    agent.tools=tools
+                # Add tools if this is a tool-using agent
+                if "Tool" in agent.role:
+                    agent.tools = tools
 
+                # Create a task for this agent
                 task = Task(
-                    description = p["desc"],
-                    expected_output = p["expected_output"],
-                    agent = agent,
-                    context = tasks
-                    )
+                    description=p["desc"],
+                    expected_output=p["expected_output"],
+                    agent=agent,
+                    context=tasks
+                )
+                
                 agents.append(agent)
                 tasks.append(task)
-            crew = Crew(agents=agents,tasks=tasks,process=Process.sequential)
-
+                
+            # Create and return the crew with sequential processing
+            crew = Crew(agents=agents, tasks=tasks, process=Process.sequential)
             return crew
+
+    async def _execute_crew_workflow(self, crew: Crew, query: str) -> dict:
+        """
+        Execute the CrewAI workflow with the given query
+        
+        Args:
+            crew (Crew): The configured CrewAI crew
+            query (str): The query to process
+            
+        Returns:
+            Dict: The execution results and log data
+        """
+        # Update task descriptions with the query
+        tasks = []
+        for task in crew.tasks:
+            desc = task.description
+            desc = desc.replace("{query}", query)
+            task.description = desc
+            tasks.append(task)
+        
+        crew.tasks = tasks
+        
+        # Execute the workflow
+        start_time = time.perf_counter()
+        crew_output = crew.kickoff()
+        execution_time = time.perf_counter() - start_time
+        final_answer = str(crew_output)
+        
+        # Extract agent outputs
+        planner_plan = ""
+        tool_selector_tools = []
+        tool_executions = []
+        response_generator_response = final_answer
+        
+        # Collect outputs from each agent
+        for task in crew.tasks:
+            if task.agent.role == "Task Planner":
+                planner_plan = task.output.raw
+            elif task.agent.role == "Tool Selector":
+                tool_selector_tools.append(task.output.raw)
+            elif task.agent.role == "Tool Executor":
+                tool_executions.append(task.output.raw)
+        
+        # Create structured log entry
+        log_entry = {
+            "query": query,
+            "execution_time": execution_time,
+            "agents": {
+                "planner": {
+                    "role": "Task Planner",
+                    "plan": planner_plan
+                },
+                "tool_selector": {
+                    "role": "Tool Selector",
+                    "tools_selected": tool_selector_tools
+                },
+                "executor": {
+                    "role": "Tool Executor",
+                    "executions": tool_executions
+                },
+                "response_generator": {
+                    "role": "Response Generator",
+                    "response": response_generator_response
+                }
+            },
+            "final_result": final_answer
+        }
+        
+        return {
+            "output": final_answer,
+            "log": log_entry
+        }
 
     async def _get_dataset_prompts(
         self, ds_id: str
@@ -809,9 +920,6 @@ class Agentic:
             if prompts_gen_index in prompt_indices:
                 yield prompts_gen_index, prompts_data
             prompts_gen_index += 1
-        
-        # Adding agents here because their infomation is from the dataset
-        
 
     async def _yield_prompt_arguments(
         self,
@@ -897,6 +1005,30 @@ class Agentic:
 
         return processed_results
 
+    def log_crew_execution(self, crew: Crew, query: str, result: dict) -> None:
+        """
+        Create a structured log of crew execution
+        
+        Args:
+            crew (Crew): The crew that executed the workflow
+            query (str): The query that was processed
+            result (dict): The execution result
+        """
+        execution_log = {
+            "query": query,
+            "execution_time": time.time(),
+            "agents": {}
+        }
+        
+        for task in crew.tasks:
+            execution_log["agents"][task.agent.name] = {
+                "role": task.agent.role,
+                "output": task.output.raw if task.output else None,
+                "execution_time": task.execution_time if hasattr(task, "execution_time") else None
+            }
+        
+        execution_log["final_result"] = result
+        logger.info(f"CrewAI Execution Log: {json.dumps(execution_log, indent=2)}")
 
     async def _process_single_prompt(
         self,
@@ -929,12 +1061,9 @@ class Agentic:
         # Create a new prompt info with connection id
         new_prompt_info = copy.deepcopy(prompt_info)
         new_prompt_info.conn_id = connector.id
-        # cache_record = None
         
-        #create a crew
-        crew = await self._create_crew_for_query(self.recipe_connectors[0])
-
         # Attempt to read from database for cache values
+        cache_record = None
         try:
             cache_record = Storage.read_database_record(
                 self.database_instance,
@@ -954,99 +1083,38 @@ class Agentic:
                 f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
                 f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
             )
-        cache_record = None
 
         # If cache record does not exist, perform prediction and cache the result
         if cache_record is None:
-            # create agents here,
-            # create tasks here
-            # create crew here
-            # execute the workflow here
             try:
                 query = new_prompt_info.connector_prompt.prompt
-                tasks = []
-                #replaces the query with query
-                for task in crew.tasks:
-                    desc = task.description
-                    desc = desc.replace("{query}",query)
-                    #replaces the description of the task
-                    task.description = desc
-                    #append this into tasks
-                    tasks.append(task)
-                #replace crew tasks with the new task with query
-                crew.tasks = tasks
+                
+                # Get crew results either from cache or by executing workflow
+                crew_results = await self._get_or_create_crew_results(query, connector)
+                final_answer = crew_results["output"]
+                log_entry = crew_results["log"]
 
-                crew_output = crew.kickoff()
-                final_answer = str(crew_output)
-
-                planner_plan = ""
-                tool_selector_tools = []
-                tool_executions = []
-                response_generator_response = final_answer  # Assuming final_answer is the response
-
-           #     short circuiting the connector because crewai will handle it
-
-
-                for task in crew.tasks:
-               #     logger.info(task.agent.role)
-               #     logger.info(task.description)
-               #     logger.info(task.output.raw)
-               #     logger.info(len(task.context))
-               #     logger.info("\n")
-                    if task.agent.role == "Task Planner":
-                        #logger.info(task.output.raw)
-                        planner_plan = task.output.raw  # Store planner's output
-                    elif task.agent.role == "Tool Selector":
-                        #logger.info("Test2")
-                        tool_selector_tools.append(task.output.raw)  # Store tool selector's output
-                    elif task.agent.role == "Tool Executor":
-                        #logger.info("Test3")
-                        tool_executions.append(task.output.raw)  # Store too executor's output
-                        
-                log_entry = {
-                    "query": query,
-                    "agents": {
-                    "planner": {
-                    "role": "Task Planner",
-                    "plan": planner_plan
-                    },
-                    "tool_selector": {
-                        "role": "Tool Selector",
-                        "tools selected": tool_selector_tools  # List of tools selected
-                    },
-                    "executor": {
-                        "role": "Tool Executor",
-                        "executions": tool_executions  # List of tool executions
-                    },
-                    "response_generator": {
-                        "role": "Response Generator",
-                        "response": response_generator_response  # Final response
-                    }
-                    },
-                }
-
+                # Update prompt info with the results
                 new_prompt_info.connector_prompt = ConnectorPromptArguments(
-                    prompt_index = new_prompt_info.connector_prompt.prompt_index,
-                    prompt = query,
-                    target = new_prompt_info.connector_prompt.target,
-                    predicted_results = ConnectorResponse(
-                        response = final_answer,
-                        context = [log_entry]
+                    prompt_index=new_prompt_info.connector_prompt.prompt_index,
+                    prompt=query,
+                    target=new_prompt_info.connector_prompt.target,
+                    predicted_results=ConnectorResponse(
+                        response=final_answer,
+                        context=[log_entry]
                     )
                 )
-               # logger.info(log_entry['agents']['planner']['plan'])
-               # logger.info(log_entry['agents']['tool_selector']['tools selected'])
-               # logger.info(log_entry['agents']['executor']['executions'])
-              #  logger.info(log_entry['agents']['response_generator']['response'])
-
-              #  new_prompt_info.connector_prompt = await Connector.get_prediction(
-              #      new_prompt_info.connector_prompt, connector
-              #  )
-           #     Storage.create_database_record(
-           #         self.database_instance,
-           #         new_prompt_info.to_tuple(),
-           #         Agentic.sql_create_runner_cache_record,
-           #     )
+                
+                # Store in database cache
+                try:
+                    Storage.create_database_record(
+                        self.database_instance,
+                        new_prompt_info.to_tuple(),
+                        Agentic.sql_create_runner_cache_record,
+                    )
+                except Exception as e:
+                    logger.warning(f"[Agentic] Failed to cache results: {str(e)}")
+                
             except Exception as e:
                 self.run_progress.notify_error(
                     f"[Agentic] Failed to generate prediction for prompt_info "
@@ -1159,4 +1227,6 @@ class PromptArguments(BaseModel):
             random_seed=cache_record[12],
             system_prompt=cache_record[13],
         )
+
+# Ensure the model is rebuilt with all properties
 PromptArguments.model_rebuild()
