@@ -431,43 +431,49 @@ class Agentic:
         logger.debug("[Agentic] Sorting the recipe predictions into groups")
         start_time = time.perf_counter()
         grouped_recipe_preds = {}
+        recipe_results = {} # Initialize recipe_results dictionary here
+
         try:
-            # Assuming `recipe_predictions` is your list of PromptArguments instances
-            recipe_predictions.sort(
-                key=attrgetter("conn_id", "rec_id", "ds_id", "pt_id")
-            )
+            # Filter out None values that resulted from prediction errors
+            # Ensure recipe_predictions is actually a list before filtering
+            if isinstance(recipe_predictions, list):
+                 valid_recipe_predictions = [pred for pred in recipe_predictions if isinstance(pred, PromptArguments)]
+                 logger.debug(f"[Agentic] Original prediction count: {len(recipe_predictions)}, Valid prediction count: {len(valid_recipe_predictions)}")
+            else:
+                 logger.error(f"[Agentic] Expected recipe_predictions to be a list, but got {type(recipe_predictions)}. Skipping grouping.")
+                 valid_recipe_predictions = []
 
-            # Now group them and generate separate lists for each group
-            grouped_recipe_preds = {
-                key: {
-                    "prompts": [pred.connector_prompt.prompt for pred in group_list],
-                    "predicted_results": [
-                        pred.connector_prompt.predicted_results for pred in group_list
-                    ],
-                    "targets": [pred.connector_prompt.target for pred in group_list],
-                    "durations": [
-                        pred.connector_prompt.duration for pred in group_list
-                    ],
+            if not valid_recipe_predictions:
+                 logger.warning(f"[Agentic] No valid predictions found for recipe [{self.recipe_instance.id}] after filtering.")
+                 # grouped_recipe_preds remains empty, recipe_results remains empty
+            else:
+                # Sort only the valid predictions
+                valid_recipe_predictions.sort(
+                    key=attrgetter("conn_id", "rec_id", "ds_id", "pt_id")
+                )
+
+                # Group the valid predictions
+                grouped_recipe_preds = {
+                    key: {
+                        "prompts": [p.connector_prompt.prompt for p in group_list],
+                        "predicted_results": [p.connector_prompt.predicted_results for p in group_list],
+                        "targets": [p.connector_prompt.target for p in group_list],
+                        "durations": [p.connector_prompt.duration for p in group_list],
+                    }
+                    for key, group in groupby(
+                        valid_recipe_predictions,
+                        key=attrgetter("conn_id", "rec_id", "ds_id", "pt_id"),
+                    )
+                    for group_list in [list(group)] # group_list contains PromptArguments objects
                 }
-                for key, group in groupby(
-                    recipe_predictions,
-                    key=attrgetter("conn_id", "rec_id", "ds_id", "pt_id"),
-                )
-                for group_list in [list(group)]
-            }
-
-            logger.debug(
-                (
-                    f"[Agentic] Sorted the recipe predictions into groups for recipe [{self.recipe_instance.id}] "
-                    f"took {(time.perf_counter() - start_time):.4f}s"
-                )
-            )
+                # ... logging for sorting time ...
 
         except Exception as e:
             self.run_progress.notify_error(
-                "[Agentic] Failed to sort recipe predictions into groups in executing recipe due to "
+                "[Agentic] Failed to sort/group recipe predictions due to " # Simplified message
                 f"error: {str(e)}"
             )
+            grouped_recipe_preds = {} # Ensure it's empty on error
 
         # ------------------------------------------------------------------------------
         # Part 4: Generate the metrics results
@@ -752,25 +758,64 @@ class Agentic:
             connector (Connector): The connector providing the model information
             
         Returns:
-            Crew: The configured CrewAI crew
+            Crew: The configured CrewAI crew or None if LLM cannot be initialized
         """
         temperature = self.temperature
         tools = get_all_tools()
-        
+        llm = None 
+        model_to_use = None 
+
+        connector_str = str(connector)
+        logger.debug(f"[Agentic Crew Creation] Processing connector: {connector_str}")
+
+        if hasattr(connector, 'model') and connector.model:
+            if "together-connector" in connector_str:
+                logger.info(f"[Agentic Crew Creation] Detected Together Connector for endpoint {connector.id}.")
+                model_to_use = f"together_ai/{connector.model}"
+            elif "openai-connector" in connector_str:
+                logger.info(f"[Agentic Crew Creation] Detected OpenAI Connector for endpoint {connector.id}.")
+                model_to_use = connector.model
+            elif "amazon-bedrock-connector" in connector_str:
+                logger.info(f"[Agentic Crew Creation] Detected Amazon Bedrock Connector for endpoint {connector.id}.")
+                model_to_use = f"bedrock/connector.model" 
+            elif "anthropic-connector" in connector_str:
+                logger.info(f"[Agentic Crew Creation] Detected Anthropic Bedrock Connector for endpoint {connector.id}.")
+                model_to_use = f"anthropic/connector.model" 
+            else:
+                logger.warning(f"[Agentic Crew Creation] Detected unknown or other connector type for endpoint {connector.id}. Using model name directly.")
+                model_to_use = connector.model 
+
+            logger.info(f"[Agentic Crew Creation] Using model name: {model_to_use}")
+
+            # Initialize the LLM object from CrewAI
+            try:
+                llm = LLM(
+                    model=model_to_use,
+                    temperature=temperature,
+                    base_url=connector.endpoint,
+                    api_key=connector.token
+                )
+                logger.debug(f"[Agentic Crew Creation] CrewAI LLM object created successfully for model {model_to_use}.")
+            except Exception as e:
+                 logger.error(f"[Agentic Crew Creation] Failed to initialize CrewAI LLM for model {model_to_use}: {e}")
+                 self.run_progress.notify_error(f"Failed to initialize LLM for connector {connector.id}: {e}")
+                 llm = None # Ensure llm is None if initialization fails
+
+        else:
+            logger.error(f"[Agentic Crew Creation] Connector {connector.id} ({connector_str}) does not have a 'model' attribute or it's empty. Cannot create LLM.")
+            self.run_progress.notify_error(f"Connector {connector.id} is missing model information.")
+            llm = None # Cannot create LLM without a model
+
+        if llm is None:
+             logger.error(f"[Agentic Crew Creation] LLM object could not be created for connector {connector.id}. Skipping crew creation for this connector.")
+             return None
+
+
         for ds_id in self.recipe_instance.datasets:
             ds_args = Dataset.read(ds_id)
             agents = []
             tasks = []
             
-            # Use the connector's model and endpoint details
-            llm = LLM(
-                model=connector.model,
-                temperature=temperature,
-                base_url=connector.endpoint,
-                api_key=connector.token
-            )
-            
-            # Create agents from dataset configuration
             for p in ds_args.agents:
                 agent = Agent(
                     name=p["name"],
@@ -781,11 +826,9 @@ class Agentic:
                     llm=llm
                 )
 
-                # Add tools if this is a tool-using agent
                 if "Tool" in agent.role:
                     agent.tools = tools
 
-                # Create a task for this agent
                 task = Task(
                     description=p["desc"],
                     expected_output=p["expected_output"],
@@ -795,11 +838,15 @@ class Agentic:
                 
                 agents.append(agent)
                 tasks.append(task)
-                
-            # Create and return the crew with sequential processing
+
             crew = Crew(agents=agents, tasks=tasks, process=Process.sequential)
+            logger.info(f"[Agentic Crew Creation] Crew created successfully for connector {connector.id} and dataset {ds_id}.")
             return crew
 
+        logger.warning(f"[Agentic Crew Creation] No datasets found in recipe instance to create crew for connector {connector.id}.")
+        return None
+    
+    
     async def _execute_crew_workflow(self, crew: Crew, query: str) -> dict:
         """
         Execute the CrewAI workflow with the given query
@@ -811,6 +858,19 @@ class Agentic:
         Returns:
             Dict: The execution results and log data
         """
+
+        if crew is None:
+            logger.error("[Agentic Crew Execution] Cannot execute workflow because the crew object is None.")
+            return {
+                "output": "[Error: Crew object was not initialized]",
+                "log": {
+                    "query": query,
+                    "execution_time": 0,
+                    "agents": {},
+                    "final_result": "[Error: Crew object was not initialized]"
+                }
+            }
+        
         # Update task descriptions with the query
         tasks = []
         for task in crew.tasks:
