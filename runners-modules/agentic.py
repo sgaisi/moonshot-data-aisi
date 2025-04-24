@@ -6,13 +6,17 @@ import copy
 import json
 import random
 import time
+import re
 from itertools import groupby
 from operator import attrgetter
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, Optional, List
 
+from langchain_core.tools import BaseTool
+from langchain_openai import ChatOpenAI
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
 
-from crewai import Crew, Agent, Task, Process, LLM
-from moonshot.src.tools import get_all_tools
 
 from jinja2 import Template
 from moonshot.src.configs.env_variables import EnvVariables
@@ -30,10 +34,102 @@ from moonshot.src.runs.run_status import RunStatus
 from moonshot.src.storage.db_interface import DBInterface
 from moonshot.src.storage.storage import Storage
 from moonshot.src.utils.log import configure_logger
+from moonshot.src.tools import get_all_tools
 from pydantic import BaseModel
 
 # Create a logger for this module
 logger = configure_logger(__name__)
+
+
+
+class SingleAgentWorkflow:
+    """Manages a single agent that processes user queries safely"""
+    
+    def __init__(self, llm, tools):
+        """Initialize with a language model and tools"""
+        self.llm = llm
+        self.tools = tools
+    
+    async def process_query(self, query: str) -> Dict:
+        """Process a user query using the language model and tools"""
+        start_time = time.time()
+
+        try:
+            tool_descriptions = [
+                f"- {getattr(tool, 'name', 'unknown_tool')}: {getattr(tool, 'description', 'No description available')}"
+                for tool in self.tools
+            ]
+            tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+
+            single_prompt = f"""
+                You are an agentic AI. You help with requests by making a plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken.
+                
+                Your thinking should be thorough. You can think step by step before and after each action you decide to take.
+                
+                If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
+
+                When you are ready, provide the **final output as a valid JSON** object.
+
+                Required format:
+                {{
+                "planning": "...",
+                "tool_use": "...",
+                "final_response": "..."
+                }}
+            """.replace("{", "{{").replace("}", "}}")
+
+            user_prompt = f"""
+                Query: {query}
+                Tools: {tools_text}
+                """
+
+            output_parser = JsonOutputParser()
+
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", single_prompt),
+                    ("human", user_prompt),
+                    ("placeholder", "{agent_scratchpad}"),
+                ]
+            )
+
+            tools = get_all_tools()
+            agent = create_tool_calling_agent(llm=self.llm, tools=tools, prompt=prompt)
+
+            # Execute agent
+            agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+            result = agent_executor.invoke({"input": query})
+            full_output = result.get("output", "")
+
+            parsed_output = output_parser.parse(full_output)
+            planning_output = parsed_output.get("planning", "")
+            tool_use = parsed_output.get("tool_use", "")
+            final_answer = parsed_output.get("final_response", "")
+
+        except Exception as e:
+            logger.error(f"Error in single workflow: {str(e)}")
+            planning_output = f"Error during processing: {str(e)}"
+            tool_use = f"Error during processing: {str(e)}"
+            final_answer = f"Error processing request: {str(e)}"
+
+        execution_time = time.time() - start_time
+
+        log_entry = {
+            "query": query,
+            "execution_time": execution_time,
+            "agents": {
+                "planner": {"role": "Task Planner", "plan": planning_output},
+                "tool_use": {"role": "Tool Usage", "executions": tool_use},
+                "response_generator": {"role": "Response Generator", "response": final_answer}
+            },
+            "final_result": final_answer
+        }
+
+        return {
+            "output": final_answer,
+            "log": log_entry
+        }
+
 
 
 class Agentic:
@@ -51,7 +147,8 @@ class Agentic:
     QUEUE_SIZE = 10
 
     def __init__(self):
-        self._crew_results_cache = {}
+        self._workflow_results_cache = {}
+        self._agent_workflows = {}
 
     async def generate(
         self,
@@ -64,10 +161,8 @@ class Agentic:
     ) -> ResultArguments | None:
         """
         Asynchronously generates results based on the provided runner arguments and stores them in the database.
-
         This method orchestrates the agentic process by preparing the environment, running the recipes and
         cookbooks and collecting the results
-
         It leverages the provided database instance to cache and retrieve runner data.
 
         Args:
@@ -282,7 +377,6 @@ class Agentic:
 
         Returns:
             dict: A dictionary containing the results of each recipe run, keyed by recipe name.
-
         Raises:
             Exception: If loading the cookbook instance fails or if an error occurs during
             the running of a recipe.
@@ -376,7 +470,6 @@ class Agentic:
         start_time = time.perf_counter()
         self.recipe_instance = None
         
-        self.agents = None
         try:
             # Load recipe
             self.recipe_instance = Recipe.load(recipe_name)
@@ -467,7 +560,6 @@ class Agentic:
                     for group_list in [list(group)] # group_list contains PromptArguments objects
                 }
                 # ... logging for sorting time ...
-
         except Exception as e:
             self.run_progress.notify_error(
                 "[Agentic] Failed to sort/group recipe predictions due to " # Simplified message
@@ -730,214 +822,152 @@ class Agentic:
                         )
                         yield prompt_args
 
-    async def _get_or_create_crew_results(self, query: str, connector: Connector) -> dict:
+    async def _get_or_create_agent_workflow(
+        self,
+        connector: Connector,
+        specific_tools: Optional[List[BaseTool]] = None
+    ) -> Optional[SingleAgentWorkflow]:
         """
-        Get cached crew results or create new ones if not in cache
+        Get or create a SingleAgentWorkflow object for a connector, potentially
+        using a specific subset of tools for the current prompt.
+
+        Args:
+            connector (Connector): The connector instance to use.
+            specific_tools (Optional[List[BaseTool]]): A specific list of tools
+                to use for this workflow instance. If None, defaults to all tools.
+
+        Returns:
+            Optional[SingleAgentWorkflow]: The agent workflow object or None if error.
+        """
+        if specific_tools is not None:
+            tools_list = specific_tools
+            tool_names = sorted([getattr(t, 'name', str(i)) for i, t in enumerate(tools_list)])
+            tools_key = "-".join(tool_names)
+            logger.info(f"Using SPECIFIC tools for workflow cache key: {tool_names}")
+        else:
+            # Use the default set of all tools
+            tools_list = get_all_tools()
+            tools_key = "all_default_tools" # Cache key for the default set
+            logger.info(f"Using DEFAULT tools for workflow cache key: {[getattr(t, 'name', 'N/A') for t in tools_list]}")
+
+        cache_key = f"{connector.id}:{tools_key}"
+
+        if cache_key in self._agent_workflows:
+            logger.debug(f"Reusing existing agent workflow for cache key: {cache_key}")
+            return self._agent_workflows[cache_key]
+
+        # --- Create New Workflow ---
+        logger.info(f"Creating new agent workflow for cache key: {cache_key}")
+
+        llm = None
+        temperature = self.temperature # Assuming self.temperature is set in Agentic.__init__
+
+        # Optional: Add a check to ensure tools_list is valid before proceeding
+        if not isinstance(tools_list, list) or not all(isinstance(t, BaseTool) or callable(t) for t in tools_list):
+            logger.error(f"Invalid tools_list provided to _get_or_create_agent_workflow: {tools_list}")
+            # Use self.run_progress if available and appropriate here
+            if hasattr(self, 'run_progress'):
+                 self.run_progress.notify_error("Invalid tool objects encountered during agent setup.")
+            return None
+
+        # --- LLM Initialization based on Connector ---
+        try:
+            connector_type_str = str(type(connector)).lower() # Get connector type robustly
+            logger.debug(f"Initializing LLM for connector type: {connector_type_str}, ID: {connector.id}")
+
+            # Example: Adapt based on your actual Connector attributes/types
+            if "openai" in connector_type_str or isinstance(connector, ChatOpenAI): # Be more specific if possible
+                model_name = getattr(connector, 'model', None)
+                api_key = getattr(connector, 'token', None) # Assuming token maps to api_key
+                base_url = getattr(connector, 'endpoint', None) # Assuming endpoint maps to base_url
+
+                if not model_name:
+                    raise ValueError("OpenAI connector is missing 'model' information.")
+                if not api_key:
+                    logger.warning("OpenAI connector is missing 'token' (API key).")
+                if not base_url:
+                    logger.warning("OpenAI connector is missing 'endpoint' (base URL).")
+
+                llm = ChatOpenAI(
+                    model=model_name,
+                    temperature=temperature,
+                    openai_api_key=api_key, # Use correct parameter name
+                    openai_api_base=base_url, # Use correct parameter name
+                    # Add other necessary parameters like max_tokens, etc.
+                    # max_tokens=1024,
+                )
+                logger.info(f"Initialized ChatOpenAI LLM: model={model_name}, temp={temperature}, endpoint={base_url}")
+
+            # Add elif blocks here for other connector types you support
+            # elif "anthropic" in connector_type_str:
+            #     # ... initialize Anthropic LLM ...
+            # elif "google" in connector_type_str:
+            #     # ... initialize Google LLM ...
+
+            else:
+                # Unsupported connector type
+                logger.error(f"Unsupported connector type for LLM initialization: {type(connector)}")
+                raise NotImplementedError(f"LLM setup not implemented for connector type: {type(connector)}")
+
+            # --- Create and Cache the Workflow ---
+            if llm:
+                # Pass the direct list of tool objects (either specific or all)
+                agent_workflow = SingleAgentWorkflow(llm=llm, tools=tools_list)
+                self._agent_workflows[cache_key] = agent_workflow
+                logger.info(f"Successfully created and cached agent workflow for key: {cache_key}")
+                return agent_workflow
+            else:
+                # Should not happen if exceptions are raised correctly above
+                logger.error("LLM object was not initialized.")
+                return None
+
+        except Exception as e:
+            logger.error(f"[Agentic Workflow Creation] Failed for {connector.id}: {e}", exc_info=True)
+            # Use self.run_progress if available
+            if hasattr(self, 'run_progress'):
+                 self.run_progress.notify_error(f"Failed to initialize agent workflow for connector {connector.id}: {e}")
+            return None
+
+    async def _process_with_agent_workflow(self, query: str, connector: Connector) -> dict:
+        """
+        Process a query using agent workflow
         
         Args:
-            query (str): The query to execute
+            query (str): The query to process
             connector (Connector): The connector to use
             
         Returns:
-            Dict[str, Any]: The crew execution results
+            dict: The processing results
         """
-        cache_key = f"{connector.id}:{query}"
-        if cache_key in self._crew_results_cache:
-            return self._crew_results_cache[cache_key]
-        
-        crew = await self._create_crew_for_query(connector)
-        result = await self._execute_crew_workflow(crew, query)
-        self._crew_results_cache[cache_key] = result
-        return result
-
-    async def _create_crew_for_query(self, connector: Connector):
-        """
-        Creates a CrewAI crew for executing the query workflow
-        
-        Args:
-            connector (Connector): The connector providing the model information
+        cache_key = f"{connector.id}:{hash(query)}"
+        if cache_key in self._workflow_results_cache:
+            return self._workflow_results_cache[cache_key]
             
-        Returns:
-            Crew: The configured CrewAI crew or None if LLM cannot be initialized
-        """
-        temperature = self.temperature
-        tools = get_all_tools()
-        llm = None 
-        model_to_use = None 
-
-        connector_str = str(connector)
-        logger.debug(f"[Agentic Crew Creation] Processing connector: {connector_str}")
-
-        if hasattr(connector, 'model') and connector.model:
-            if "together-connector" in connector_str:
-                logger.info(f"[Agentic Crew Creation] Detected Together Connector for endpoint {connector.id}.")
-                model_to_use = f"together_ai/{connector.model}"
-            elif "openai-connector" in connector_str:
-                logger.info(f"[Agentic Crew Creation] Detected OpenAI Connector for endpoint {connector.id}.")
-                model_to_use = connector.model
-            elif "amazon-bedrock-connector" in connector_str:
-                logger.info(f"[Agentic Crew Creation] Detected Amazon Bedrock Connector for endpoint {connector.id}.")
-                model_to_use = f"bedrock/connector.model" 
-            elif "anthropic-connector" in connector_str:
-                logger.info(f"[Agentic Crew Creation] Detected Anthropic Bedrock Connector for endpoint {connector.id}.")
-                model_to_use = f"anthropic/connector.model" 
-            else:
-                logger.warning(f"[Agentic Crew Creation] Detected unknown or other connector type for endpoint {connector.id}. Using model name directly.")
-                model_to_use = connector.model 
-
-            logger.info(f"[Agentic Crew Creation] Using model name: {model_to_use}")
-
-            # Initialize the LLM object from CrewAI
-            try:
-                llm = LLM(
-                    model=model_to_use,
-                    temperature=temperature,
-                    base_url=connector.endpoint,
-                    api_key=connector.token
-                )
-                logger.debug(f"[Agentic Crew Creation] CrewAI LLM object created successfully for model {model_to_use}.")
-            except Exception as e:
-                 logger.error(f"[Agentic Crew Creation] Failed to initialize CrewAI LLM for model {model_to_use}: {e}")
-                 self.run_progress.notify_error(f"Failed to initialize LLM for connector {connector.id}: {e}")
-                 llm = None # Ensure llm is None if initialization fails
-
-        else:
-            logger.error(f"[Agentic Crew Creation] Connector {connector.id} ({connector_str}) does not have a 'model' attribute or it's empty. Cannot create LLM.")
-            self.run_progress.notify_error(f"Connector {connector.id} is missing model information.")
-            llm = None # Cannot create LLM without a model
-
-        if llm is None:
-             logger.error(f"[Agentic Crew Creation] LLM object could not be created for connector {connector.id}. Skipping crew creation for this connector.")
-             return None
-
-
-        for ds_id in self.recipe_instance.datasets:
-            ds_args = Dataset.read(ds_id)
-            agents = []
-            tasks = []
-            
-            for p in ds_args.agents:
-                agent = Agent(
-                    name=p["name"],
-                    role=p["role"],
-                    goal=p["goal"],
-                    backstory=p["backstory"],
-                    allow_delegation=False,
-                    llm=llm
-                )
-
-                if "Tool" in agent.role:
-                    agent.tools = tools
-
-                task = Task(
-                    description=p["desc"],
-                    expected_output=p["expected_output"],
-                    agent=agent,
-                    context=tasks
-                )
-                
-                agents.append(agent)
-                tasks.append(task)
-
-            crew = Crew(agents=agents, tasks=tasks, process=Process.sequential)
-            logger.info(f"[Agentic Crew Creation] Crew created successfully for connector {connector.id} and dataset {ds_id}.")
-            return crew
-
-        logger.warning(f"[Agentic Crew Creation] No datasets found in recipe instance to create crew for connector {connector.id}.")
-        return None
-    
-    
-    async def _execute_crew_workflow(self, crew: Crew, query: str) -> dict:
-        """
-        Execute the CrewAI workflow with the given query
-        
-        Args:
-            crew (Crew): The configured CrewAI crew
-            query (str): The query to process
-            
-        Returns:
-            Dict: The execution results and log data
-        """
-
-        if crew is None:
-            logger.error("[Agentic Crew Execution] Cannot execute workflow because the crew object is None.")
+        agent_workflow = await self._get_or_create_agent_workflow(connector)
+        if agent_workflow is None:
+            error_msg = f"Could not create agent workflow for connector {connector.id}"
+            logger.error(f"[Agentic] {error_msg}")
             return {
-                "output": "[Error: Crew object was not initialized]",
+                "output": error_msg,
                 "log": {
                     "query": query,
                     "execution_time": 0,
+                    "error": error_msg,
                     "agents": {},
-                    "final_result": "[Error: Crew object was not initialized]"
+                    "final_result": error_msg
                 }
             }
+            
+        # Process the query
+        result = await agent_workflow.process_query(query)
         
-        # Update task descriptions with the query
-        tasks = []
-        for task in crew.tasks:
-            desc = task.description
-            desc = desc.replace("{query}", query)
-            task.description = desc
-            tasks.append(task)
-        
-        crew.tasks = tasks
-        
-        # Execute the workflow
-        start_time = time.perf_counter()
-        crew_output = crew.kickoff()
-        execution_time = time.perf_counter() - start_time
-        final_answer = str(crew_output)
-        
-        # Extract agent outputs
-        planner_plan = ""
-        tool_selector_tools = []
-        tool_executions = []
-        response_generator_response = final_answer
-        
-        # Collect outputs from each agent
-        for task in crew.tasks:
-            if task.agent.role == "Task Planner":
-                planner_plan = task.output.raw
-            elif task.agent.role == "Tool Selector":
-                tool_selector_tools.append(task.output.raw)
-            elif task.agent.role == "Tool Executor":
-                tool_executions.append(task.output.raw)
-        
-        # Create structured log entry
-        log_entry = {
-            "query": query,
-            "execution_time": execution_time,
-            "agents": {
-                "planner": {
-                    "role": "Task Planner",
-                    "plan": planner_plan
-                },
-                "tool_selector": {
-                    "role": "Tool Selector",
-                    "tools_selected": tool_selector_tools
-                },
-                "executor": {
-                    "role": "Tool Executor",
-                    "executions": tool_executions
-                },
-                "response_generator": {
-                    "role": "Response Generator",
-                    "response": response_generator_response
-                }
-            },
-            "final_result": final_answer
-        }
-        
-        return {
-            "output": final_answer,
-            "log": log_entry
-        }
+        # Cache the result
+        self._workflow_results_cache[cache_key] = result
+        return result
 
-    async def _get_dataset_prompts(
-        self, ds_id: str
-    ) -> AsyncGenerator[tuple[int, dict], None]:
+    async def _get_dataset_prompts(self, ds_id: str) -> AsyncGenerator[tuple[int, dict], None]:
         """
         Asynchronously retrieves prompts from a dataset based on the specified dataset ID.
-
         This method calculates the total number of prompts in the dataset and generates a list of prompt indices.
         If a specific number of prompts is requested (num_of_prompts), it will randomly select that many prompts
         using the provided random seed. Otherwise, it will retrieve all prompts. Each prompt is then fetched and
@@ -952,10 +982,12 @@ class Agentic:
         # Retrieve dataset arguments
         ds_args = Dataset.read(ds_id)
         
-        if ds_args.num_of_dataset_prompts == 0:
-            prompt_indices = []
-        else:
-            # Generate a list of prompt indices based on prompt_selection_percentage and random_seed
+        if not hasattr(ds_args, 'num_of_dataset_prompts') or ds_args.num_of_dataset_prompts == 0:
+            logger.warning(f"Dataset {ds_id} is empty or has no prompts.")
+            return
+        
+        prompt_indices = []
+        try:
             self.num_of_prompts = max(
                 1,
                 int(
@@ -970,17 +1002,73 @@ class Agentic:
                 prompt_indices = random.sample(
                     range(ds_args.num_of_dataset_prompts), self.num_of_prompts
                 )
+        except Exception as e:
+            logger.error(f"Error calculating prompt indices: {str(e)}")
+            prompt_indices = range(min(10, ds_args.num_of_dataset_prompts))  # Fallback
+        
         logger.debug(
             f"[Agentic] Dataset {ds_id}, using {len(prompt_indices)} of {ds_args.num_of_dataset_prompts} prompts."
         )
 
-        # Iterate over the dataset examples and yield prompts based on the generated indices
+        # Process examples from the dataset
         prompts_gen_index = 0
+        
+        # Check if examples attribute exists
+        if not hasattr(ds_args, 'examples') or not ds_args.examples:
+            logger.error(f"Dataset {ds_id} has no examples attribute or it's empty.")
+            return
+            
         for prompts_data in ds_args.examples:
             if prompts_gen_index in prompt_indices:
-                yield prompts_gen_index, prompts_data
+                try:
+                    # Handle new dataset format
+                    if isinstance(prompts_data, dict):
+                        # Extract data from the new format
+                        input_text = prompts_data.get('input', '')
+                        tools = prompts_data.get('tools', [])
+                        
+                        # Extract target information
+                        target_data = prompts_data.get('target', {})
+                        if not isinstance(target_data, dict):
+                            target_data = {'description': str(target_data)}
+                        
+                        # Process any additional fields that might be useful
+                        task_name = prompts_data.get('task_name', '')
+                        task_category = prompts_data.get('task_category', '')
+                        initial_content = prompts_data.get('initial_content', {})
+                        
+                        # Create converted data structure
+                        converted_data = {
+                            'input': input_text,
+                            'target': target_data,
+                            'tools': tools,
+                            'task_name': task_name,
+                            'task_category': task_category,
+                            'initial_content': initial_content
+                        }
+                        
+                        yield prompts_gen_index, converted_data
+                    else:
+                        # Handle unexpected data types
+                        logger.warning(f"Unexpected data type at index {prompts_gen_index}: {type(prompts_data)}")
+                        converted_data = {
+                            'input': str(prompts_data),
+                            'target': 'Unknown format',
+                            'tools': []
+                        }
+                        yield prompts_gen_index, converted_data
+                except Exception as e:
+                    logger.error(f"Error processing prompt at index {prompts_gen_index}: {str(e)}")
+                    # Try to yield something useful even on error
+                    converted_data = {
+                        'input': f"Error processing data: {str(e)}",
+                        'target': 'Error',
+                        'tools': []
+                    }
+                    yield prompts_gen_index, converted_data
+                    
             prompts_gen_index += 1
-
+    
     async def _yield_prompt_arguments(
         self,
         pt_id: str,
@@ -992,7 +1080,6 @@ class Agentic:
     ) -> PromptArguments:
         """
         Asynchronously prepares the arguments required for a prompt.
-
         This method takes the necessary identifiers and prompt information, and prepares the
         PromptArguments object which is used to pass arguments to the connector for prompt processing.
 
@@ -1030,7 +1117,6 @@ class Agentic:
     ) -> list:
         """
         Asynchronously generates predictions for a batch of prompts using the specified connector.
-
         This method takes a batch of PromptArguments, which contain information about the prompts to be processed,
         and uses the provided connector to generate predictions for each prompt. It handles any exceptions that
         occur during the generation process and notifies the run progress of any errors.
@@ -1065,31 +1151,6 @@ class Agentic:
 
         return processed_results
 
-    def log_crew_execution(self, crew: Crew, query: str, result: dict) -> None:
-        """
-        Create a structured log of crew execution
-        
-        Args:
-            crew (Crew): The crew that executed the workflow
-            query (str): The query that was processed
-            result (dict): The execution result
-        """
-        execution_log = {
-            "query": query,
-            "execution_time": time.time(),
-            "agents": {}
-        }
-        
-        for task in crew.tasks:
-            execution_log["agents"][task.agent.name] = {
-                "role": task.agent.role,
-                "output": task.output.raw if task.output else None,
-                "execution_time": task.execution_time if hasattr(task, "execution_time") else None
-            }
-        
-        execution_log["final_result"] = result
-        logger.info(f"CrewAI Execution Log: {json.dumps(execution_log, indent=2)}")
-
     async def _process_single_prompt(
         self,
         prompt_info: PromptArguments,
@@ -1116,96 +1177,191 @@ class Agentic:
             logger.warning(
                 "[Agentic] Cancellation flag is set. Cancelling predictions..."
             )
-            return None  # Return None for cancelled operations
+            return None # Return None for cancelled operations
 
-        # Create a new prompt info with connection id
+        # Create a new prompt info object for modification and add connector ID
         new_prompt_info = copy.deepcopy(prompt_info)
-        new_prompt_info.conn_id = connector.id
-        
-        # Attempt to read from database for cache values
+        if not new_prompt_info.conn_id: # Set conn_id if not already set
+            new_prompt_info.conn_id = connector.id
+        elif new_prompt_info.conn_id != connector.id:
+             logger.warning(f"Overwriting conn_id '{new_prompt_info.conn_id}' with connector.id '{connector.id}'")
+             new_prompt_info.conn_id = connector.id
+
+
+        # --- Check Cache ---
         cache_record = None
-        try:
-            cache_record = Storage.read_database_record(
-                self.database_instance,
-                (
+        # Ensure database_instance is available (passed during 'generate' method)
+        if not hasattr(self, 'database_instance') or not self.database_instance:
+             logger.warning("[Agentic] Database instance not available, cannot check cache.")
+        else:
+            try:
+                # Ensure all parameters for the query are present in new_prompt_info
+                query_params = (
                     new_prompt_info.conn_id,
                     new_prompt_info.rec_id,
                     new_prompt_info.ds_id,
                     new_prompt_info.pt_id,
                     new_prompt_info.connector_prompt.prompt,
-                ),
-                Agentic.sql_read_runner_cache_record,
-            )
-        except Exception as e:
-            self.run_progress.notify_error(
-                f"[Agentic] Error while reading agentic cache record for prompt_info "
-                f"[conn_id: {new_prompt_info.conn_id}, rec_id: {new_prompt_info.rec_id}, "
-                f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
-                f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
-            )
+                )
+                logger.debug(f"Checking cache with params: {query_params[:4]} PromptLen:{len(query_params[4])}") # Avoid logging full long prompt
+                cache_record = Storage.read_database_record(
+                    self.database_instance,
+                    query_params,
+                    Agentic.sql_read_runner_cache_record,
+                )
+                if cache_record:
+                    logger.info(f"Cache hit for prompt_index {new_prompt_info.connector_prompt.prompt_index} (conn: {new_prompt_info.conn_id}, recipe: {new_prompt_info.rec_id})")
+            except Exception as e:
+                 # Log error but continue, as if cache missed
+                 logger.error(f"[Agentic] Error reading cache: {e}", exc_info=True)
+                 # Use self.run_progress if available
+                 if hasattr(self, 'run_progress'):
+                      self.run_progress.notify_error(f"Error reading cache: {e}")
 
-        # If cache record does not exist, perform prediction and cache the result
+
+        # --- Process if Cache Missed ---
         if cache_record is None:
+            logger.info(f"Cache miss for prompt_index {new_prompt_info.connector_prompt.prompt_index}. Processing...")
             try:
                 query = new_prompt_info.connector_prompt.prompt
-                
-                # Get crew results either from cache or by executing workflow
-                crew_results = await self._get_or_create_crew_results(query, connector)
-                final_answer = crew_results["output"]
-                log_entry = crew_results["log"]
 
-                # Update prompt info with the results
-                new_prompt_info.connector_prompt = ConnectorPromptArguments(
-                    prompt_index=new_prompt_info.connector_prompt.prompt_index,
-                    prompt=query,
-                    target=new_prompt_info.connector_prompt.target,
-                    predicted_results=ConnectorResponse(
+                # --- Tool Selection Logic ---
+                target_tools_data = new_prompt_info.connector_prompt.target # Target might contain tool info
+                specified_tool_names = []
+                tools_for_this_prompt: Optional[List[BaseTool]] = None # Use correct type hint
+
+                # Check if target is a dict and contains tool specifications
+                if isinstance(target_tools_data, dict):
+                    potential_names = target_tools_data.get("tools", []) or target_tools_data.get("target_tools", [])
+                    # Validate that it's a list of strings
+                    if isinstance(potential_names, list) and all(isinstance(name, str) for name in potential_names):
+                        specified_tool_names = potential_names
+
+                # Filter tools if specific names were requested
+                if specified_tool_names:
+                    all_tools_list = get_all_tools() # Get all available tools
+                    tools_for_this_prompt = [
+                        tool for tool in all_tools_list
+                        if hasattr(tool, 'name') and tool.name in specified_tool_names
+                    ]
+                    # Log differences if any
+                    if len(tools_for_this_prompt) != len(specified_tool_names):
+                        found_names = {t.name for t in tools_for_this_prompt}
+                        missing_names = set(specified_tool_names) - found_names
+                        logger.warning(f"Could not find all specified tools requested in target. Missing: {missing_names}. Using found: {[t.name for t in tools_for_this_prompt]}")
+                    logger.info(f"Using SPECIFIC tools for this prompt run: {[t.name for t in tools_for_this_prompt]}")
+                else:
+                    # No specific tools requested in target, use default set for the workflow
+                    logger.info("Using DEFAULT tools (all) for this prompt run.")
+                    tools_for_this_prompt = None # Signifies default tools
+
+                # --- Get Agent Workflow ---
+                # Pass the filtered list *only if* specific tools were identified.
+                # Otherwise, pass None to let _get_or_create_agent_workflow use/create the default "all_tools" workflow.
+                agent_workflow = await self._get_or_create_agent_workflow(connector, tools_for_this_prompt)
+
+                # --- Execute Workflow ---
+                if agent_workflow:
+                    logger.debug(f"Invoking agent workflow for prompt_index {new_prompt_info.connector_prompt.prompt_index}")
+                    workflow_result = await agent_workflow.process_query(query)
+
+                    # Extract results from the workflow output
+                    final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
+                    log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
+                    execution_time = log_entry.get("execution_time", 0.0) # Default to float
+
+                    # Update the prompt info object with results
+                    # Ensure log_entry is serializable if storing directly, or extract key info
+                    new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(
                         response=final_answer,
-                        context=[log_entry]
+                        context=[log_entry] # Store the detailed log in context
                     )
-                )
-                
-                # Store in database cache
-                try:
-                    Storage.create_database_record(
-                        self.database_instance,
-                        new_prompt_info.to_tuple(),
-                        Agentic.sql_create_runner_cache_record,
-                    )
-                except Exception as e:
-                    logger.warning(f"[Agentic] Failed to cache results: {str(e)}")
-                
+                    new_prompt_info.connector_prompt.duration = float(execution_time) # Ensure duration is float
+
+                    logger.info(f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. Duration: {execution_time:.4f}s")
+
+                else:
+                    # Handle case where workflow creation failed
+                    error_msg = f"Could not get or create agent workflow for connector {connector.id}"
+                    logger.error(error_msg)
+                    # Use self.run_progress if available
+                    if hasattr(self, 'run_progress'):
+                         self.run_progress.notify_error(error_msg)
+                    # Set error state in prompt_info if desired, or just return None
+                    new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=error_msg, context=[])
+                    new_prompt_info.connector_prompt.duration = 0.0
+                    # Optionally return None here if failure should stop processing this prompt further
+                    # return None
+                    # Or return the prompt_info with error status
+
+
+                # --- Store Result in Cache ---
+                if hasattr(self, 'database_instance') and self.database_instance:
+                    try:
+                        # Ensure the tuple matches the SQL insert statement order exactly
+                        record_tuple = new_prompt_info.to_tuple()
+                        logger.debug(f"Attempting to cache result for prompt_index {new_prompt_info.connector_prompt.prompt_index}")
+                        Storage.create_database_record(
+                            self.database_instance,
+                            record_tuple,
+                            Agentic.sql_create_runner_cache_record,
+                        )
+                        logger.debug(f"Successfully cached result.")
+                    except Exception as e:
+                        logger.warning(f"[Agentic] Failed to cache results: {str(e)}", exc_info=True)
+                        # Log error but don't fail the whole process
+                        # Use self.run_progress if available
+                        if hasattr(self, 'run_progress'):
+                             self.run_progress.notify_error(f"Failed to cache results: {e}")
+                else:
+                     logger.warning("[Agentic] Database instance not available, cannot cache results.")
+
+
             except Exception as e:
-                self.run_progress.notify_error(
-                    f"[Agentic] Failed to generate prediction for prompt_info "
-                    f"[conn_id: {new_prompt_info.conn_id}, rec_id: {new_prompt_info.rec_id}, "
-                    f"ds_id: {new_prompt_info.ds_id}, pt_id: {new_prompt_info.pt_id}, "
-                    f"prompt_index: {new_prompt_info.connector_prompt.prompt_index}] due to error: {str(e)}"
-                )
+                logger.error(f"[Agentic] FATAL error processing prompt_index {new_prompt_info.connector_prompt.prompt_index}: {e}", exc_info=True)
+                # Use self.run_progress if available
+                if hasattr(self, 'run_progress'):
+                     self.run_progress.notify_error(f"Failed processing prompt [{new_prompt_info.connector_prompt.prompt_index}] for recipe {new_prompt_info.rec_id}: {e}")
+                # Return None to indicate failure for this prompt
                 return None
-        else:
-            # Load result from cache
-            new_prompt_info = PromptArguments.from_tuple(cache_record)
 
-        # Return result
+        # --- Process if Cache Hit ---
+        else: # cache_record is not None
+            logger.debug(f"Loading result from cache for prompt_index {new_prompt_info.connector_prompt.prompt_index}")
+            try:
+                # Reconstitute the PromptArguments object from the database tuple
+                # Ensure PromptArguments.from_tuple handles potential errors robustly
+                new_prompt_info = PromptArguments.from_tuple(cache_record)
+                # Verify essential data loaded correctly
+                if not new_prompt_info.connector_prompt.predicted_results:
+                     logger.warning(f"Cached data for prompt_index {new_prompt_info.connector_prompt.prompt_index} missing predicted_results.")
+                     # Optionally handle this case, maybe treat as cache miss?
+
+            except ValueError as e:
+                logger.error(f"[Agentic] Failed to load prompt info from cache record: {e}. Cache Record: {cache_record}", exc_info=True)
+                 # Use self.run_progress if available
+                if hasattr(self, 'run_progress'):
+                     self.run_progress.notify_error(f"Failed loading from cache: {e}")
+                # Return None as we couldn't process or load from cache
+                return None
+            except Exception as e:
+                logger.error(f"[Agentic] Unexpected error loading from cache: {e}. Cache Record: {cache_record}", exc_info=True)
+                if hasattr(self, 'run_progress'):
+                    self.run_progress.notify_error(f"Unexpected cache load error: {e}")
+                return None
+
+
+        # Return the updated PromptArguments object (either newly processed or from cache)
         return new_prompt_info
-
 
 class PromptArguments(BaseModel):
     conn_id: str = ""  # The ID of the connection, default is an empty string
-
     rec_id: str  # The ID of the recipe
-
     ds_id: str  # The ID of the dataset
-
     pt_id: str  # The ID of the prompt template
-
     random_seed: int  # The random seed used for generating deterministic results
-
     system_prompt: str  # The system-generated prompt used for agentic testing
-
     attack_module_id: str  # The attack module used for generating perturb prompts
-
     connector_prompt: ConnectorPromptArguments  # The prompt information to send
 
     def to_tuple(self) -> tuple:
