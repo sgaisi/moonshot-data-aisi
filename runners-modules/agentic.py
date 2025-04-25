@@ -68,23 +68,45 @@ class SingleAgentWorkflow:
                 
                 If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
 
-                When you are ready, provide the **final output as a valid JSON** object.
 
                 Required format:
                 {{
-                "planning": "...",
-                "tool_use": "...",
-                "final_response": "..."
+                    "planning": "...",
+                    "tool_use": "...",
+                    "final_response": "..."
                 }}
             """.replace("{", "{{").replace("}", "}}")
 
             user_prompt = f"""
                 Query: {query}
                 Tools: {tools_text}
-                """
+            """
+            
+            # Define a better output parser 
+            def ensure_valid_json(output_text):
+                """Attempts to extract or construct valid JSON from the output text."""
+                # First try: Direct parsing
+                try:
+                    return json.loads(output_text)
+                except json.JSONDecodeError:
+                    pass
+                
+                try:
+                    import re
+                    json_match = re.search(r'\{.*\}', output_text, re.DOTALL)
+                    if json_match:
+                        potential_json = json_match.group(0)
+                        return json.loads(potential_json)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+                return {
+                    "planning": "",
+                    "tool_use": "",
+                    "final_response": output_text.strip()
+                }
 
             output_parser = JsonOutputParser()
-
+            
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", single_prompt),
@@ -92,25 +114,48 @@ class SingleAgentWorkflow:
                     ("placeholder", "{agent_scratchpad}"),
                 ]
             )
-
+            
             tools = get_all_tools()
             agent = create_tool_calling_agent(llm=self.llm, tools=tools, prompt=prompt)
 
-            # Execute agent
             agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-            result = agent_executor.invoke({"input": query})
-            full_output = result.get("output", "")
 
-            parsed_output = output_parser.parse(full_output)
+            try:
+                result = agent_executor.invoke({"input": query})
+                full_output = result.get("output", "").strip()
+            except Exception as e:
+                logger.error(f"Agent execution failed: {e}")
+                full_output = f"Error during execution: {e}"
+
+            if not full_output:
+                logger.warning("Agent returned an empty response.")
+                parsed_output = {
+                    "planning": "",
+                    "tool_use": "",
+                    "final_response": "Agent returned no output."
+                }
+            else:
+                try:
+                    # Use the enhanced JSON parsing function
+                    parsed_output = ensure_valid_json(full_output)
+                except Exception as e:
+                    logger.warning(f"JSON processing completely failed: {e}")
+                    parsed_output = {
+                        "planning": "",
+                        "tool_use": "",
+                        "final_response": full_output
+                    }
+
             planning_output = parsed_output.get("planning", "")
             tool_use = parsed_output.get("tool_use", "")
             final_answer = parsed_output.get("final_response", "")
 
         except Exception as e:
-            logger.error(f"Error in single workflow: {str(e)}")
+            logger.error(f"Top-level processing error: {e}")
             planning_output = f"Error during processing: {str(e)}"
             tool_use = f"Error during processing: {str(e)}"
             final_answer = f"Error processing request: {str(e)}"
+
 
         execution_time = time.time() - start_time
 
@@ -129,7 +174,6 @@ class SingleAgentWorkflow:
             "output": final_answer,
             "log": log_entry
         }
-
 
 
 class Agentic:
