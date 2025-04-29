@@ -15,8 +15,12 @@ from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-
+from langchain.load.dump import dumps
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_anthropic import ChatAnthropic
+from langchain_together import ChatTogether
+from langchain_openai import AzureChatOpenAI
+from langchain_aws import ChatBedrockConverse
 
 from jinja2 import Template
 from moonshot.src.configs.env_variables import EnvVariables
@@ -41,6 +45,64 @@ from pydantic import BaseModel
 logger = configure_logger(__name__)
 
 
+def process_intermediate_steps(intermediate_steps):
+    """Format intermediate steps with tool name, input, output, reasoning, and status."""
+    cleaned_steps = []
+    
+    # Track sequence number for ordering
+    sequence_number = 1
+
+    for step in intermediate_steps:
+        if isinstance(step, (tuple, list)) and len(step) == 2:
+            action_info, result_info = step
+            
+            # Extract base information
+            tool_name = getattr(action_info, 'tool', 'Unknown Tool')
+            tool_input = getattr(action_info, 'tool_input', {})
+            tool_output = result_info
+            
+            # Extract planning/reasoning if available
+            planning_reasoning = ""
+            if hasattr(action_info, 'log'):
+                log_content = getattr(action_info, 'log', '')
+                # Try to extract planning from the log
+                planning_match = re.search(r'"planning":\s*"([^"]+)"', log_content)
+                if planning_match:
+                    planning_reasoning = planning_match.group(1)
+            
+            # Handle if tool_input is a JSON string
+            if isinstance(tool_input, str):
+                try:
+                    tool_input = json.loads(tool_input)
+                except Exception:
+                    pass  # leave it as-is
+
+            # Handle if tool_output is dict or list
+            if isinstance(tool_output, (dict, list)):
+                tool_output = json.dumps(tool_output, indent=2)
+            elif not isinstance(tool_output, str):
+                tool_output = str(tool_output)
+                
+            # Determine success/failure status
+            is_success = not (isinstance(tool_output, str) and 
+                             (tool_output.startswith("Error:") or "error" in tool_output.lower()))
+
+            # Add all information to the cleaned step
+            cleaned_steps.append({
+                "sequence_number": sequence_number,
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+                "tool_output": tool_output,
+                "planning_reasoning": planning_reasoning,
+                "is_success": is_success,
+                "error_message": tool_output if not is_success else ""
+            })
+            
+            # Increment sequence number for the next step
+            sequence_number += 1
+
+    return cleaned_steps
+
 
 class SingleAgentWorkflow:
     """Manages a single agent that processes user queries safely"""
@@ -49,43 +111,81 @@ class SingleAgentWorkflow:
         """Initialize with a language model and tools"""
         self.llm = llm
         self.tools = tools
-    
-    async def process_query(self, query: str) -> Dict:
-        """Process a user query using the language model and tools"""
-        start_time = time.time()
+        self.agent_executor = None 
 
         try:
-            tool_descriptions = [
-                f"- {getattr(tool, 'name', 'unknown_tool')}: {getattr(tool, 'description', 'No description available')}"
-                for tool in self.tools
-            ]
-            tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+            single_prompt_template = """
+            You are an agentic AI. You help with requests by making a plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken.
+            Your thinking should be thorough. You can think step by step before and after each action you decide to take.
+            If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
 
-            single_prompt = f"""
-                You are an agentic AI. You help with requests by making a plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken.
-                
-                Your thinking should be thorough. You can think step by step before and after each action you decide to take.
-                
-                If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
+            Required format:
+            {{
+                "planning": "...",
+                "tool_use": "...",
+                "final_response": "..."
+            }}
+            """.strip() 
 
+            self.prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", single_prompt_template),
+                    ("user", "{input}"), 
+                    ("placeholder", "{agent_scratchpad}"),
+                ]
+            )
 
-                Required format:
-                {{
-                    "planning": "...",
-                    "tool_use": "...",
-                    "final_response": "..."
-                }}
-            """.replace("{", "{{").replace("}", "}}")
+            # 3. Create the Agent
+            if not isinstance(self.tools, list) or not all(isinstance(t, BaseTool) for t in self.tools):
+                 raise TypeError(f"Invalid 'tools' provided to SingleAgentWorkflow: {type(self.tools)}. Expected List[BaseTool].")
 
-            user_prompt = f"""
-                Query: {query}
-                Tools: {tools_text}
-            """
-            
-            # Define a better output parser 
+            self.agent = create_tool_calling_agent(llm=self.llm, tools=self.tools, prompt=self.prompt)
+
+            # 4. Create the Agent Executor
+            self.agent_executor = AgentExecutor(
+                agent=self.agent,
+                tools=self.tools,
+                verbose=True,
+                return_intermediate_steps=True,
+            )
+            logger.info(f"SingleAgentWorkflow initialized successfully with {len(self.tools)} tools.")
+
+        except Exception as e:
+             logger.error(f"Failed to initialize SingleAgentWorkflow: {e}", exc_info=True)
+             self.agent_executor = None
+             
+    async def process_query(self, query: str) -> Dict:
+        """
+        Process a user query using the pre-initialized language model, tools, agent, and executor.
+        """
+        start_time = time.time()
+        intermediate_steps = []
+        full_output = ""
+        parsed_output = {}
+        planning_output = ""
+        tool_use = ""
+        final_answer = "Error: Agent workflow failed to produce a final answer." 
+        
+        if self.agent_executor is None:
+            logger.error("Cannot process query: SingleAgentWorkflow was not initialized properly.")
+            final_answer = "Error: Agent workflow could not be initialized."
+            execution_time = time.time() - start_time
+            log_entry = {
+                 "query": query, "execution_time": execution_time, "error": final_answer,
+                 "agents": {}, "final_result": final_answer
+            }
+            return {"output": final_answer, "log": log_entry}
+
+        try:
+            logger.debug(f"Invoking agent executor with query: {query[:100]}...")
+            result = await self.agent_executor.ainvoke({"input": query})
+            full_output = result.get("output", "").strip()
+            intermediate_steps = result.get('intermediate_steps', [])
+
             def ensure_valid_json(output_text):
                 """Attempts to extract or construct valid JSON from the output text."""
-                # First try: Direct parsing
+                if not output_text: # Handle empty string case
+                    return {"planning": "", "tool_use": "", "final_response": "Agent returned no output."}
                 try:
                     return json.loads(output_text)
                 except json.JSONDecodeError:
@@ -98,34 +198,13 @@ class SingleAgentWorkflow:
                         potential_json = json_match.group(0)
                         return json.loads(potential_json)
                 except (json.JSONDecodeError, AttributeError):
-                    pass
+                     pass
+                logger.warning(f"Could not parse agent output as JSON. Treating as final response. Output: {output_text[:200]}...")
                 return {
                     "planning": "",
                     "tool_use": "",
                     "final_response": output_text.strip()
                 }
-
-            output_parser = JsonOutputParser()
-            
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", single_prompt),
-                    ("human", user_prompt),
-                    ("placeholder", "{agent_scratchpad}"),
-                ]
-            )
-            
-            tools = get_all_tools()
-            agent = create_tool_calling_agent(llm=self.llm, tools=tools, prompt=prompt)
-
-            agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-
-            try:
-                result = agent_executor.invoke({"input": query})
-                full_output = result.get("output", "").strip()
-            except Exception as e:
-                logger.error(f"Agent execution failed: {e}")
-                full_output = f"Error during execution: {e}"
 
             if not full_output:
                 logger.warning("Agent returned an empty response.")
@@ -151,10 +230,18 @@ class SingleAgentWorkflow:
             final_answer = parsed_output.get("final_response", "")
 
         except Exception as e:
-            logger.error(f"Top-level processing error: {e}")
-            planning_output = f"Error during processing: {str(e)}"
-            tool_use = f"Error during processing: {str(e)}"
+            logger.error(f"Top-level processing error: {e}", exc_info=True)
+            full_output = f"Error during execution: {e}"
+            planning_output = f"Error during execution: {e}"
+            tool_use = f"Error during execution: {e}"
             final_answer = f"Error processing request: {str(e)}"
+
+        if intermediate_steps:
+             executions = process_intermediate_steps(intermediate_steps)
+        else:
+             executions = [{
+                 "tool_name": "N/A", "tool_input": {}, "tool_output": "No tool actions executed."
+             }]
 
 
         execution_time = time.time() - start_time
@@ -164,11 +251,13 @@ class SingleAgentWorkflow:
             "execution_time": execution_time,
             "agents": {
                 "planner": {"role": "Task Planner", "plan": planning_output},
-                "tool_use": {"role": "Tool Usage", "executions": tool_use},
+                "tool_use": {"role": "Tool Usage", "executions": executions},
                 "response_generator": {"role": "Response Generator", "response": final_answer}
             },
             "final_result": final_answer
         }
+
+        logger.debug(f"Agent processed query in {execution_time:.4f}s.  {final_answer}...")
 
         return {
             "output": final_answer,
@@ -193,6 +282,16 @@ class Agentic:
     def __init__(self):
         self._workflow_results_cache = {}
         self._agent_workflows = {}
+        self._connector_llms: Dict[str, BaseChatModel] = {}
+        try:
+            self.all_tools: List[BaseTool] = get_all_tools()
+            if not isinstance(self.all_tools, list) or not all(isinstance(t, BaseTool) for t in self.all_tools):
+                 logger.warning("get_all_tools() did not return a valid list of BaseTool objects. Proceeding with an empty list.")
+                 self.all_tools = []
+            logger.info(f"Initialized Agentic with {len(self.all_tools)} tools.")
+        except Exception as e:
+            logger.error(f"Failed to load tools during Agentic initialization: {e}", exc_info=True)
+            self.all_tools = []
 
     async def generate(
         self,
@@ -884,15 +983,22 @@ class Agentic:
             Optional[SingleAgentWorkflow]: The agent workflow object or None if error.
         """
         if specific_tools is not None:
-            tools_list = specific_tools
-            tool_names = sorted([getattr(t, 'name', str(i)) for i, t in enumerate(tools_list)])
-            tools_key = "-".join(tool_names)
-            logger.info(f"Using SPECIFIC tools for workflow cache key: {tool_names}")
+            # Ensure specific_tools is a valid list of BaseTool objects
+            if not isinstance(specific_tools, list) or not all(isinstance(t, BaseTool) for t in specific_tools):
+                logger.error(f"Invalid specific_tools provided: {specific_tools}. Using default tools.")
+                # Fallback to default tools or handle error appropriately
+                tools_list = self.all_tools # Use pre-loaded default tools
+                tools_key = "all_default_tools"
+            else:
+                tools_list = specific_tools
+                tool_names = sorted([getattr(t, 'name', str(i)) for i, t in enumerate(tools_list)])
+                tools_key = "-".join(tool_names) if tool_names else "no_specific_tools"
+                logger.info(f"Using SPECIFIC tools for workflow cache key: {tool_names}")
         else:
-            # Use the default set of all tools
-            tools_list = get_all_tools()
+            # Use the default set of all tools pre-loaded in __init__
+            tools_list = self.all_tools
             tools_key = "all_default_tools" # Cache key for the default set
-            logger.info(f"Using DEFAULT tools for workflow cache key: {[getattr(t, 'name', 'N/A') for t in tools_list]}")
+            logger.info(f"Requesting workflow with DEFAULT tools.")
 
         cache_key = f"{connector.id}:{tools_key}"
 
@@ -903,73 +1009,32 @@ class Agentic:
         # --- Create New Workflow ---
         logger.info(f"Creating new agent workflow for cache key: {cache_key}")
 
-        llm = None
-        temperature = self.temperature # Assuming self.temperature is set in Agentic.__init__
-
-        # Optional: Add a check to ensure tools_list is valid before proceeding
-        if not isinstance(tools_list, list) or not all(isinstance(t, BaseTool) or callable(t) for t in tools_list):
-            logger.error(f"Invalid tools_list provided to _get_or_create_agent_workflow: {tools_list}")
-            # Use self.run_progress if available and appropriate here
-            if hasattr(self, 'run_progress'):
-                 self.run_progress.notify_error("Invalid tool objects encountered during agent setup.")
-            return None
-
-        # --- LLM Initialization based on Connector ---
         try:
-            connector_type_str = str(type(connector)).lower() # Get connector type robustly
-            logger.debug(f"Initializing LLM for connector type: {connector_type_str}, ID: {connector.id}")
+            # Get (or create and cache) the LLM for this connector
+            llm = await self._get_llm_for_connector(connector)
+            if not llm:
+                # Error already logged in _get_llm_for_connector
+                return None # Cannot proceed without LLM
 
-            # Example: Adapt based on your actual Connector attributes/types
-            if "openai" in connector_type_str or isinstance(connector, ChatOpenAI): # Be more specific if possible
-                model_name = getattr(connector, 'model', None)
-                api_key = getattr(connector, 'token', None) # Assuming token maps to api_key
-                base_url = getattr(connector, 'endpoint', None) # Assuming endpoint maps to base_url
+            # Validate tools_list again before passing
+            if not isinstance(tools_list, list) or not all(isinstance(t, BaseTool) for t in tools_list):
+                 logger.error(f"Invalid tools_list provided to SingleAgentWorkflow creation: {tools_list}")
+                 # Use self.run_progress if available and appropriate here
+                 if hasattr(self, 'run_progress'):
+                    self.run_progress.notify_error("Invalid tool objects encountered during agent setup.")
+                 return None
 
-                if not model_name:
-                    raise ValueError("OpenAI connector is missing 'model' information.")
-                if not api_key:
-                    logger.warning("OpenAI connector is missing 'token' (API key).")
-                if not base_url:
-                    logger.warning("OpenAI connector is missing 'endpoint' (base URL).")
-
-                llm = ChatOpenAI(
-                    model=model_name,
-                    temperature=temperature,
-                    openai_api_key=api_key, # Use correct parameter name
-                    openai_api_base=base_url, # Use correct parameter name
-                    # Add other necessary parameters like max_tokens, etc.
-                    # max_tokens=1024,
-                )
-                logger.info(f"Initialized ChatOpenAI LLM: model={model_name}, temp={temperature}, endpoint={base_url}")
-
-            # Add elif blocks here for other connector types you support
-            # elif "anthropic" in connector_type_str:
-            #     # ... initialize Anthropic LLM ...
-            # elif "google" in connector_type_str:
-            #     # ... initialize Google LLM ...
-
-            else:
-                # Unsupported connector type
-                logger.error(f"Unsupported connector type for LLM initialization: {type(connector)}")
-                raise NotImplementedError(f"LLM setup not implemented for connector type: {type(connector)}")
-
-            # --- Create and Cache the Workflow ---
-            if llm:
-                # Pass the direct list of tool objects (either specific or all)
-                agent_workflow = SingleAgentWorkflow(llm=llm, tools=tools_list)
-                self._agent_workflows[cache_key] = agent_workflow
-                logger.info(f"Successfully created and cached agent workflow for key: {cache_key}")
-                return agent_workflow
-            else:
-                # Should not happen if exceptions are raised correctly above
-                logger.error("LLM object was not initialized.")
-                return None
+            # Create the workflow. Initialization now includes agent/executor setup.
+            agent_workflow = SingleAgentWorkflow(llm=llm, tools=tools_list)
+            self._agent_workflows[cache_key] = agent_workflow
+            logger.info(f"Successfully created and cached agent workflow for key: {cache_key}")
+            return agent_workflow
 
         except Exception as e:
-            logger.error(f"[Agentic Workflow Creation] Failed for {connector.id}: {e}", exc_info=True)
+            logger.error(f"[Agentic Workflow Creation] Failed for key {cache_key}: {e}", exc_info=True)
             # Use self.run_progress if available
             if hasattr(self, 'run_progress'):
-                 self.run_progress.notify_error(f"Failed to initialize agent workflow for connector {connector.id}: {e}")
+                self.run_progress.notify_error(f"Failed to create agent workflow for {connector.id} with tools '{tools_key}': {e}")
             return None
 
     async def _process_with_agent_workflow(self, query: str, connector: Connector) -> dict:
@@ -1222,7 +1287,6 @@ class Agentic:
                 "[Agentic] Cancellation flag is set. Cancelling predictions..."
             )
             return None # Return None for cancelled operations
-
         # Create a new prompt info object for modification and add connector ID
         new_prompt_info = copy.deepcopy(prompt_info)
         if not new_prompt_info.conn_id: # Set conn_id if not already set
@@ -1230,7 +1294,6 @@ class Agentic:
         elif new_prompt_info.conn_id != connector.id:
              logger.warning(f"Overwriting conn_id '{new_prompt_info.conn_id}' with connector.id '{connector.id}'")
              new_prompt_info.conn_id = connector.id
-
 
         # --- Check Cache ---
         cache_record = None
@@ -1247,7 +1310,7 @@ class Agentic:
                     new_prompt_info.pt_id,
                     new_prompt_info.connector_prompt.prompt,
                 )
-                logger.debug(f"Checking cache with params: {query_params[:4]} PromptLen:{len(query_params[4])}") # Avoid logging full long prompt
+                # logger.debug(f"Checking cache with params: {query_params[:4]} PromptLen:{len(query_params[4])}")
                 cache_record = Storage.read_database_record(
                     self.database_instance,
                     query_params,
@@ -1270,38 +1333,42 @@ class Agentic:
                 query = new_prompt_info.connector_prompt.prompt
 
                 # --- Tool Selection Logic ---
-                target_tools_data = new_prompt_info.connector_prompt.target # Target might contain tool info
+                target_data = new_prompt_info.connector_prompt.target # Target might contain tool info
                 specified_tool_names = []
                 tools_for_this_prompt: Optional[List[BaseTool]] = None # Use correct type hint
 
                 # Check if target is a dict and contains tool specifications
-                if isinstance(target_tools_data, dict):
-                    potential_names = target_tools_data.get("tools", []) or target_tools_data.get("target_tools", [])
+                if isinstance(target_data, dict):
+                    potential_names = target_data.get("tools", target_data.get("target_tools"))
                     # Validate that it's a list of strings
-                    if isinstance(potential_names, list) and all(isinstance(name, str) for name in potential_names):
-                        specified_tool_names = potential_names
+                    if isinstance(potential_names, list) and potential_names and all(isinstance(name, str) for name in potential_names):
+                         specified_tool_names = potential_names
+                         logger.debug(f"Found tool names in target: {specified_tool_names}")
+
 
                 # Filter tools if specific names were requested
                 if specified_tool_names:
-                    all_tools_list = get_all_tools() # Get all available tools
-                    tools_for_this_prompt = [
-                        tool for tool in all_tools_list
-                        if hasattr(tool, 'name') and tool.name in specified_tool_names
-                    ]
-                    # Log differences if any
-                    if len(tools_for_this_prompt) != len(specified_tool_names):
-                        found_names = {t.name for t in tools_for_this_prompt}
-                        missing_names = set(specified_tool_names) - found_names
-                        logger.warning(f"Could not find all specified tools requested in target. Missing: {missing_names}. Using found: {[t.name for t in tools_for_this_prompt]}")
-                    logger.info(f"Using SPECIFIC tools for this prompt run: {[t.name for t in tools_for_this_prompt]}")
-                else:
-                    # No specific tools requested in target, use default set for the workflow
-                    logger.info("Using DEFAULT tools (all) for this prompt run.")
-                    tools_for_this_prompt = None # Signifies default tools
+                     tools_for_this_prompt = [
+                         tool for tool in self.all_tools # Use cached tools
+                         if hasattr(tool, 'name') and tool.name in specified_tool_names
+                     ]
+                     # Log differences if any
+                     if len(tools_for_this_prompt) != len(specified_tool_names):
+                         found_names = {t.name for t in tools_for_this_prompt}
+                         missing_names = set(specified_tool_names) - found_names
+                         logger.warning(f"Could not find all specified tools requested in target. Missing: {missing_names}. Using found: {[t.name for t in tools_for_this_prompt]}")
+                     if not tools_for_this_prompt:
+                         logger.warning(f"No tools found matching the specified names: {specified_tool_names}. Falling back to default tools.")
+                         tools_for_this_prompt = None # Fallback to default by setting to None
+                     else:
+                        logger.info(f"Using SPECIFIC tools for this prompt run: {[t.name for t in tools_for_this_prompt]}")
+
+                if tools_for_this_prompt is None:
+                     logger.info("Using DEFAULT tools for this prompt run.")
+
 
                 # --- Get Agent Workflow ---
                 # Pass the filtered list *only if* specific tools were identified.
-                # Otherwise, pass None to let _get_or_create_agent_workflow use/create the default "all_tools" workflow.
                 agent_workflow = await self._get_or_create_agent_workflow(connector, tools_for_this_prompt)
 
                 # --- Execute Workflow ---
@@ -1326,11 +1393,7 @@ class Agentic:
 
                 else:
                     # Handle case where workflow creation failed
-                    error_msg = f"Could not get or create agent workflow for connector {connector.id}"
-                    logger.error(error_msg)
-                    # Use self.run_progress if available
-                    if hasattr(self, 'run_progress'):
-                         self.run_progress.notify_error(error_msg)
+                    error_msg = f"Could not get or create agent workflow for connector {connector.id} (tools specified: {bool(specified_tool_names)})"
                     # Set error state in prompt_info if desired, or just return None
                     new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=error_msg, context=[])
                     new_prompt_info.connector_prompt.duration = 0.0
@@ -1383,7 +1446,6 @@ class Agentic:
 
             except ValueError as e:
                 logger.error(f"[Agentic] Failed to load prompt info from cache record: {e}. Cache Record: {cache_record}", exc_info=True)
-                 # Use self.run_progress if available
                 if hasattr(self, 'run_progress'):
                      self.run_progress.notify_error(f"Failed loading from cache: {e}")
                 # Return None as we couldn't process or load from cache
@@ -1398,6 +1460,152 @@ class Agentic:
         # Return the updated PromptArguments object (either newly processed or from cache)
         return new_prompt_info
 
+    async def _get_llm_for_connector(self, connector: Connector) -> Optional[BaseChatModel]:
+        """
+        Gets or creates an initialized LLM instance for a given connector.
+        Supports multiple LLM providers including OpenAI, Azure OpenAI, Anthropic,
+        Together AI, AWS Bedrock, etc.
+        """
+        if connector.id in self._connector_llms:
+            logger.debug(f"Reusing cached LLM for connector ID: {connector.id}")
+            return self._connector_llms[connector.id]
+
+        logger.info(f"Creating new LLM instance for connector ID: {connector.id}")
+        llm = None
+        temperature = self.temperature
+        connector_type_str = str(type(connector)).lower()
+        
+        try:
+            # Extract common parameters that might be used across different providers
+            model_name = getattr(connector, 'model', None)
+            api_key = getattr(connector, 'token', None)  # Assuming token maps to api_key
+            base_url = getattr(connector, 'endpoint', None)  # Assuming endpoint maps to base_url
+            
+            # Log basic connector info without revealing secrets
+            logger.debug(f"Initializing LLM for connector type: {connector_type_str}, ID: {connector.id}")
+            logger.info(f"Using model: {model_name}, temp: {temperature}, endpoint: {base_url}")
+            
+            # 1. OpenAI
+            if "openai" in connector_type_str and "azure" not in connector_type_str:
+                
+                if not model_name:
+                    raise ValueError("OpenAI connector is missing 'model' information")
+                    
+                llm = ChatOpenAI(
+                    model=model_name,
+                    temperature=temperature,
+                    openai_api_key=api_key,
+                    openai_api_base=base_url,
+                )
+                logger.info(f"Initialized ChatOpenAI LLM for {connector.id}")
+                
+            elif "azure" in connector_type_str or "azureopenai" in connector_type_str:
+                
+                azure_deployment = getattr(connector, 'deployment_name', model_name)
+                azure_endpoint = base_url
+                api_version = getattr(connector, 'api_version', "2023-05-15") 
+                
+                if not azure_deployment:
+                    raise ValueError("Azure OpenAI connector is missing deployment name")
+                if not azure_endpoint:
+                    raise ValueError("Azure OpenAI connector is missing endpoint URL")
+                    
+                llm = AzureChatOpenAI(
+                    deployment_name=azure_deployment,
+                    model_name=model_name,
+                    temperature=temperature,
+                    openai_api_key=api_key,
+                    openai_api_base=azure_endpoint,
+                    openai_api_version=api_version,
+                )
+                logger.info(f"Initialized AzureChatOpenAI LLM for {connector.id}")
+                
+            elif "anthropic" in connector_type_str or "claude" in connector_type_str:
+                
+                if not model_name:
+                    raise ValueError("Anthropic connector is missing 'model' information")
+                    
+                llm = ChatAnthropic(
+                    model=model_name,
+                    temperature=temperature,
+                    anthropic_api_key=api_key,
+                    api_url=base_url if base_url else None,
+                )
+                logger.info(f"Initialized ChatAnthropic LLM for {connector.id}")
+                
+            elif "bedrock" in connector_type_str or "amazon" in connector_type_str:                
+                region_name = getattr(connector, 'region', 'us-east-2')
+                profile_name = getattr(connector, 'profile', None)
+                
+                if not model_name:
+                    raise ValueError("Bedrock connector is missing 'model' information")
+                    
+                bedrock_kwargs = {
+                    "model_id": model_name,
+                    "region_name": region_name,
+                    "temperature": temperature,
+                }
+                
+                if profile_name:
+                    bedrock_kwargs["profile_name"] = profile_name
+                if api_key:
+                    bedrock_kwargs["aws_access_key_id"] = api_key
+                if hasattr(connector, 'secret_key'):
+                    bedrock_kwargs["aws_secret_access_key"] = connector.secret_key
+                    
+                # llm = ChatBedrockConverse(**bedrock_kwargs)
+                logger.info(f"Initialized BedrockChat LLM for {connector.id}")
+                
+            elif "together" in connector_type_str:
+                
+                if not model_name:
+                    raise ValueError("Together AI connector is missing 'model' information")
+                    
+                llm = ChatTogether(
+                    model=model_name,
+                    temperature=temperature,
+                    together_api_key=api_key,
+                )
+                logger.info(f"Initialized Together LLM for {connector.id}")
+                
+            else:
+                model_name_lower = model_name.lower() if model_name else ""
+                
+                if "gpt" in model_name_lower:
+                    llm = ChatOpenAI(
+                        model=model_name,
+                        temperature=temperature,
+                        openai_api_key=api_key,
+                        openai_api_base=base_url,
+                    )
+                    logger.info(f"Initialized ChatOpenAI LLM based on model name for {connector.id}")
+                    
+                elif "claude" in model_name_lower:
+                    llm = ChatAnthropic(
+                        model=model_name,
+                        temperature=temperature,
+                        anthropic_api_key=api_key,
+                        api_url=base_url if base_url else None,
+                    )
+                    logger.info(f"Initialized ChatAnthropic LLM based on model name for {connector.id}")
+                    
+                else:
+                    logger.error(f"Unsupported connector type for LLM initialization: {type(connector)}")
+                    raise NotImplementedError(f"LLM setup not implemented for connector type: {type(connector)}")
+
+            if llm:
+                self._connector_llms[connector.id] = llm
+                return llm
+            else:
+                logger.error(f"LLM object was not initialized for connector {connector.id}")
+                return None
+
+        except Exception as e:
+            logger.error(f"[LLM Creation] Failed for connector {connector.id}: {e}", exc_info=True)
+            if hasattr(self, 'run_progress'):
+                self.run_progress.notify_error(f"Failed to initialize LLM for connector {connector.id}: {e}")
+            return None
+    
 class PromptArguments(BaseModel):
     conn_id: str = ""  # The ID of the connection, default is an empty string
     rec_id: str  # The ID of the recipe
