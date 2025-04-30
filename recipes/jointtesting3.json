@@ -7,7 +7,7 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "injecagent-leakage"
+        "ia-leakage"
     ],
     "prompt_templates": [],
     "metrics": [

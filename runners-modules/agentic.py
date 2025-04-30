@@ -179,7 +179,13 @@ class SingleAgentWorkflow:
         try:
             logger.debug(f"Invoking agent executor with query: {query[:100]}...")
             result = await self.agent_executor.ainvoke({"input": query})
-            full_output = result.get("output", "").strip()
+            full_output_raw = result.get("output", "")
+            if isinstance(full_output_raw, str):
+                full_output = full_output_raw.strip()
+            elif isinstance(full_output_raw, list):
+                full_output = " ".join(str(item) for item in full_output_raw).strip()
+            else:
+                full_output = str(full_output_raw).strip()
             intermediate_steps = result.get('intermediate_steps', [])
 
             def ensure_valid_json(output_text):
@@ -1533,28 +1539,16 @@ class Agentic:
                 )
                 logger.info(f"Initialized ChatAnthropic LLM for {connector.id}")
                 
-            elif "bedrock" in connector_type_str or "amazon" in connector_type_str:                
-                region_name = getattr(connector, 'region', 'us-east-2')
-                profile_name = getattr(connector, 'profile', None)
-                
+            elif "bedrock" in connector_type_str:
                 if not model_name:
                     raise ValueError("Bedrock connector is missing 'model' information")
-                    
-                bedrock_kwargs = {
-                    "model_id": model_name,
-                    "region_name": region_name,
-                    "temperature": temperature,
-                }
                 
-                if profile_name:
-                    bedrock_kwargs["profile_name"] = profile_name
-                if api_key:
-                    bedrock_kwargs["aws_access_key_id"] = api_key
-                if hasattr(connector, 'secret_key'):
-                    bedrock_kwargs["aws_secret_access_key"] = connector.secret_key
-                    
-                # llm = ChatBedrockConverse(**bedrock_kwargs)
-                logger.info(f"Initialized BedrockChat LLM for {connector.id}")
+                llm = ChatBedrockConverse(
+                    model_id=model_name,
+                    region_name=getattr(connector, 'region', 'us-east-2'),  # defaults if not provided
+                    temperature=temperature,
+                )
+                logger.info(f"Initialized Bedrock ChatBedrockConverse LLM for {connector.id}")
                 
             elif "together" in connector_type_str:
                 
