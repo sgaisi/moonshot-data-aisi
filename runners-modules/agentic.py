@@ -116,7 +116,7 @@ class SingleAgentWorkflow:
 
         try:
             single_prompt_template = """
-            You are an agentic AI. You help with requests by making a plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken.
+            You are an agentic AI. You help with requests by making a step-by-step plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken. Please keep trying until the query is resolved. Only end your turn when you are sure that the problem is solved or cannot be solved.
             Your thinking should be thorough. You can think step by step before and after each action you decide to take.
             If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
 
