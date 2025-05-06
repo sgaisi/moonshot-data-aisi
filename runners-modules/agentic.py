@@ -1065,151 +1065,76 @@ class Agentic:
         # Assign connector ID if not present or mismatched
         if not new_prompt_info.conn_id: new_prompt_info.conn_id = connector.id
         elif new_prompt_info.conn_id != connector.id: new_prompt_info.conn_id = connector.id
+        logger.info(f"Processing prompt index {new_prompt_info.connector_prompt.prompt_index}.")
+        try:
+            query = new_prompt_info.connector_prompt.prompt
 
-        # --- Check Cache ---
-        cache_record = None
-        if hasattr(self, 'database_instance') and self.database_instance:
-            try:
-                # Ensure all parameters for the query are present in new_prompt_info
-                query_params = (
-                    new_prompt_info.conn_id,
-                    new_prompt_info.rec_id,
-                    new_prompt_info.ds_id,
-                    new_prompt_info.pt_id,
-                    new_prompt_info.connector_prompt.prompt,
-                )
-                cache_record = Storage.read_database_record(
-                    self.database_instance,
-                    query_params,
-                    Agentic.sql_read_runner_cache_record,
-                )
-                if cache_record:
-                    logger.info(f"Cache hit for prompt index {new_prompt_info.connector_prompt.prompt_index} (conn: {new_prompt_info.conn_id})")
-            except Exception as e:
-                # Log error but continue, as if cache missed
-                logger.error(f"[Agentic] Error reading cache {new_prompt_info.connector_prompt.prompt_index}: {e}", exc_info=True)
-                self.run_progress.notify_error(f"Cache read error: {e}")
-                cache_record = None
+            # --- Tool Selection Logic ---
+            specified_tool_names = new_prompt_info.dataset_tools # Get List[str]
+            tools_for_this_prompt: Optional[List[BaseTool]] = None# Default to None (-> use all tools)
 
-        # --- Process if Cache Missed ---
-        if cache_record is None:
-            logger.info(f"Cache miss for prompt index {new_prompt_info.connector_prompt.prompt_index}. Processing...")
-            try:
-                query = new_prompt_info.connector_prompt.prompt
-
-                # --- Tool Selection Logic ---
-                specified_tool_names = new_prompt_info.dataset_tools # Get List[str]
-                tools_for_this_prompt: Optional[List[BaseTool]] = None # Default to None (-> use all tools)
-
-                if specified_tool_names: # Only filter if names were provided
-                    logger.debug(f"Dataset specified tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {specified_tool_names}")
-                    current_matched_tools = [
-                        self.all_tools_map[name]
-                        for name in specified_tool_names
-                        if name in self.all_tools_map
-                    ]
-
-                    if len(current_matched_tools) != len(specified_tool_names):
-                        found_names = {t.name for t in current_matched_tools}
-                        missing_names = set(specified_tool_names) - found_names
-                        logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: Could not find all specified tools. Missing: {missing_names}.")
-
-                    if current_matched_tools:
-                        tools_for_this_prompt = current_matched_tools
-                        logger.info(f"Using SPECIFIC tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {[t.name for t in tools_for_this_prompt]}")
-                    else:
-                        logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None of the specified tools ({specified_tool_names}) were found. Using DEFAULT tools.")
+            if specified_tool_names: # Only filter if names were provided
+                logger.debug(f"Dataset specified tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {specified_tool_names}")
+                current_matched_tools = [
+                    self.all_tools_map[name]
+                    for name in specified_tool_names
+                    if name in self.all_tools_map
+                ]
+                if len(current_matched_tools) != len(specified_tool_names):
+                    found_names = {t.name for t in current_matched_tools}
+                    missing_names = set(specified_tool_names) - found_names
+                    logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: Could not find all specified tools. Missing: {missing_names}.")
+                if current_matched_tools:
+                    tools_for_this_prompt = current_matched_tools
+                    logger.info(f"Using SPECIFIC tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {[t.name for t in tools_for_this_prompt]}")
                 else:
-                    logger.info(f"Using DEFAULT (all) tools for prompt {new_prompt_info.connector_prompt.prompt_index}.")
+                    logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None specified tools found. Using DEFAULT tools.")
+            else:
+                logger.info(f"Using DEFAULT (all) tools for prompt {new_prompt_info.connector_prompt.prompt_index}.")
 
+            # --- Get Agent Workflow ---
+            # Pass the filtered list *only if* specific tools were identified.
+            agent_workflow = await self._get_or_create_agent_workflow(
+                connector,
+                tools_for_this_prompt
+            )
 
-                # --- Get Agent Workflow ---
-                # Pass the filtered list *only if* specific tools were identified.
-                agent_workflow = await self._get_or_create_agent_workflow(
-                    connector,
-                    tools_for_this_prompt
+            # --- Execute Workflow ---
+            if agent_workflow:
+                logger.debug(f"Invoking agent workflow for prompt index {new_prompt_info.connector_prompt.prompt_index}")
+                workflow_result = await agent_workflow.process_query(query)
+                
+                final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
+                log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
+                # Ensure dataset_tools are logged even if workflow fails to return log properly
+                if "dataset_tools_requested" not in log_entry:
+                    log_entry["dataset_tools_requested"] = new_prompt_info.dataset_tools
+                execution_time = log_entry.get("execution_time", 0.0)
+
+                # Update the prompt info object with results
+                # Ensure log_entry is serializable if storing directly, or extract key info
+                new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(
+                    response=final_answer,
+                    context=[log_entry] # Store the detailed log in context
                 )
+                new_prompt_info.connector_prompt.duration = float(execution_time) # Ensure duration is float
+                logger.info(f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. Duration: {execution_time:.4f}s")
 
-                # --- Execute Workflow ---
-                if agent_workflow:
-                    logger.debug(f"Invoking agent workflow for prompt index {new_prompt_info.connector_prompt.prompt_index}")
-                    workflow_result = await agent_workflow.process_query(query)
-
-                    # Extract results from the workflow output
-                    final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
-                    log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
-                    execution_time = log_entry.get("execution_time", 0.0) # Default to float
-
-                    # Update the prompt info object with results
-                    # Ensure log_entry is serializable if storing directly, or extract key info
-                    new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(
-                        response=final_answer,
-                        context=[log_entry] # Store the detailed log in context
-                    )
-                    new_prompt_info.connector_prompt.duration = float(execution_time) # Ensure duration is float
-                    logger.info(f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. Duration: {execution_time:.4f}s")
-
-                else:
-                    # Handle case where workflow creation failed
-                    error_msg = f"Agent workflow creation/retrieval failed for connector {connector.id}."
-                    logger.error(f"[Agentic] {error_msg} for prompt {new_prompt_info.connector_prompt.prompt_index}")
-                    new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=error_msg, context=[{"error": error_msg}])
-                    new_prompt_info.connector_prompt.duration = 0.0
-                    # Optionally return None here if failure should stop processing this prompt further
-                    # return None
-                    # Or return the prompt_info with error status
-
-                # --- Store Result in Cache ---
-                if hasattr(self, 'database_instance') and self.database_instance:
-                    try:
-                        # Ensure the tuple matches the SQL insert statement order exactly
-                        record_tuple = new_prompt_info.to_tuple()
-                        logger.debug(f"Attempting to cache result for prompt_index {new_prompt_info.connector_prompt.prompt_index}")
-                        Storage.create_database_record(
-                            self.database_instance,
-                            record_tuple,
-                            Agentic.sql_create_runner_cache_record,
-                        )
-                        logger.debug(f"Successfully cached result.")
-                    except Exception as e:
-                        logger.warning(f"[Agentic] Failed to cache results: {str(e)}", exc_info=True)
-                        # Log error but don't fail the whole process
-                        # Use self.run_progress if available
-                        self.run_progress.notify_error(f"Failed to cache results: {e}")
-                else:
-                     logger.warning("[Agentic] Database instance not available, cannot cache results.")
-
-
-            except Exception as e:
-                logger.error(f"[Agentic] FATAL error processing prompt index {new_prompt_info.connector_prompt.prompt_index}: {e}", exc_info=True)
-                self.run_progress.notify_error(f"Failed processing prompt {new_prompt_info.connector_prompt.prompt_index}: {e}")
-                new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=f"Fatal Error: {e}", context=[{"error": str(e)}])
+            else:
+                error_msg = f"Agent workflow creation/retrieval failed for connector {connector.id}."
+                logger.error(f"[Agentic] {error_msg} for prompt {new_prompt_info.connector_prompt.prompt_index}")
+                new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=error_msg, context=[])
                 new_prompt_info.connector_prompt.duration = 0.0
-                # Return None to indicate failure for this prompt
-                return new_prompt_info
 
 
-        # --- Process if Cache Hit ---
-        else: # cache_record is not None
-            logger.debug(f"Loading result from cache for prompt index {new_prompt_info.connector_prompt.prompt_index}")
-            try:
-                # Reconstitute the PromptArguments object from the database tuple
-                # Ensure PromptArguments.from_tuple handles potential errors robustly
-                new_prompt_info = PromptArguments.from_tuple(cache_record)
-                # Verify essential data loaded correctly
-                if not new_prompt_info.connector_prompt.predicted_results:
-                     logger.warning(f"Cached data for prompt_index {new_prompt_info.connector_prompt.prompt_index} missing predicted_results.")
-                     # Optionally handle this case, maybe treat as cache miss?
+        except Exception as e:
+            logger.error(f"[Agentic] FATAL error processing prompt index {new_prompt_info.connector_prompt.prompt_index}: {e}", exc_info=True)
+            self.run_progress.notify_error(f"Failed processing prompt {new_prompt_info.connector_prompt.prompt_index}: {e}")
+            
+            new_prompt_info.connector_prompt.predicted_results = 0.0
 
-            except Exception as e:
-                logger.error(f"[Agentic] Failed to load prompt info from cache record: {e}. Cache Record: {cache_record}", exc_info=True)
-                self.run_progress.notify_error(f"Failed loading from cache: {e}")
-                # Return None as we couldn't process or load from cache
-                return None
-
-
-        # Return the updated PromptArguments object (either newly processed or from cache)
         return new_prompt_info
+
 
     async def _get_or_create_agent_workflow(
         self,
@@ -1278,8 +1203,11 @@ class Agentic:
 
     # --- _get_llm_for_connector method ---
     async def _get_llm_for_connector(self, connector: Connector) -> Optional[BaseChatModel]:
-        """Gets or creates an LLM instance for a connector, caching the result."""
-        # ... (LLM creation/caching logic - remains the same as provided previously) ...
+        """
+        Gets or creates an initialized LLM instance for a given connector.
+        Supports multiple LLM providers including OpenAI, Azure OpenAI, Anthropic,
+        Together AI, AWS Bedrock, etc.
+        """
         if connector.id in self._connector_llms:
             logger.debug(f"Reusing cached LLM for connector ID: {connector.id}")
             return self._connector_llms[connector.id]
@@ -1288,62 +1216,118 @@ class Agentic:
         llm = None
         temperature = self.temperature
         connector_type_str = str(type(connector)).lower()
+        
         try:
             # Extract common parameters that might be used across different providers
-            model_name = getattr(connector, 'model', getattr(connector, 'model_id', None)) # More robust model name fetching
-            api_key = getattr(connector, 'token', None)
-            base_url = getattr(connector, 'endpoint', None)
-            region = getattr(connector, 'region', None) # For Bedrock etc.
-            api_version = getattr(connector, 'api_version', None) # For Azure
-            deployment_name = getattr(connector, 'deployment_name', model_name) # For Azure
-
-            logger.debug(f"Connector Info - Type: {connector_type_str}, ID: {connector.id}, Model: {model_name}, Temp: {temperature}, Endpoint: {base_url}, Region: {region}")
-            if "azure" in connector_type_str or "azureopenai" in connector_type_str:
-                 if not deployment_name or not base_url or not api_key or not api_version:
-                      raise ValueError("Azure OpenAI connector missing required fields (deployment, endpoint, key, api_version)")
-                 llm = AzureChatOpenAI(
-                     deployment_name=deployment_name, 
-                     model_name=model_name,
-                     temperature=temperature,
-                     openai_api_key=api_key,
-                     azure_endpoint=base_url,
-                     api_version=api_version,
-                 )
-                 logger.info(f"Initialized AzureChatOpenAI LLM for {connector.id}")
-            elif "openai" in connector_type_str: # Must come after Azure check
-                 if not model_name: raise ValueError("OpenAI connector missing 'model' name")
-                 llm = ChatOpenAI(
-                     model=model_name, 
-                     temperature=temperature,
-                     openai_api_key=api_key, 
-                     openai_api_base=base_url, 
-                 )
-                 logger.info(f"Initialized ChatOpenAI LLM for {connector.id}")
-            elif "anthropic" in connector_type_str or ("claude" in model_name.lower() if model_name else False):
-                 if not model_name: raise ValueError("Anthropic connector missing 'model' name")
-                 llm = ChatAnthropic(
-                     model=model_name, temperature=temperature,
-                     anthropic_api_key=api_key, api_url=base_url if base_url else None,
-                 )
-                 logger.info(f"Initialized ChatAnthropic LLM for {connector.id}")
-            elif "bedrock" in connector_type_str:
-                 if not model_name: raise ValueError("Bedrock connector missing 'model_id'")
-                 # Credentials should be handled via environment or AWS config
-                 llm = ChatBedrockConverse(
-                     model_id=model_name,
-                     region_name=region, 
-                     temperature=temperature,
-                 )
-                 logger.info(f"Initialized Bedrock ChatBedrockConverse LLM for {connector.id}")
+            model_name = getattr(connector, 'model', None)
+            api_key = getattr(connector, 'token', None)  # Assuming token maps to api_key
+            base_url = getattr(connector, 'endpoint', None)  # Assuming endpoint maps to base_url
+            
+            # Log basic connector info without revealing secrets
+            logger.debug(f"Initializing LLM for connector type: {connector_type_str}, ID: {connector.id}")
+            logger.info(f"Using model: {model_name}, temp: {temperature}, endpoint: {base_url}")
+            
+            # 1. OpenAI
+            if "openai" in connector_type_str and "azure" not in connector_type_str:
+                
+                if not model_name:
+                    raise ValueError("OpenAI connector is missing 'model' information")
+                    
+                llm = ChatOpenAI(
+                    model=model_name,
+                    temperature=temperature,
+                    openai_api_key=api_key,
+                    openai_api_base=base_url,
+                )
+                logger.info(f"Initialized ChatOpenAI LLM for {connector.id}")
+                
+            elif "azure" in connector_type_str or "azureopenai" in connector_type_str:
+                
+                azure_deployment = getattr(connector, 'deployment_name', model_name)
+                azure_endpoint = base_url
+                api_version = getattr(connector, 'api_version', "2023-05-15") 
+                
+                if not azure_deployment:
+                    raise ValueError("Azure OpenAI connector is missing deployment name")
+                if not azure_endpoint:
+                    raise ValueError("Azure OpenAI connector is missing endpoint URL")
+                    
+                llm = AzureChatOpenAI(
+                    deployment_name=azure_deployment,
+                    model_name=model_name,
+                    temperature=temperature,
+                    openai_api_key=api_key,
+                    openai_api_base=azure_endpoint,
+                    openai_api_version=api_version,
+                )
+                logger.info(f"Initialized AzureChatOpenAI LLM for {connector.id}")
+                
+            elif "anthropic" in connector_type_str or "claude" in connector_type_str:
+                
+                if not model_name:
+                    raise ValueError("Anthropic connector is missing 'model' information")
+                    
+                llm = ChatAnthropic(
+                    model=model_name,
+                    temperature=temperature,
+                    anthropic_api_key=api_key,
+                    api_url=base_url if base_url else None,
+                )
+                logger.info(f"Initialized ChatAnthropic LLM for {connector.id}")
+                
+            elif "bedrock" in connector_type_str or "amazon" in connector_type_str:                
+                region_name = getattr(connector, 'region', 'us-east-2')
+                profile_name = getattr(connector, 'profile', None)
+                
+                if not model_name:
+                    raise ValueError("Bedrock connector is missing 'model' information")
+                    
+                bedrock_kwargs = {
+                    "model_id": model_name,
+                    "region_name": region_name,
+                    "temperature": temperature,
+                }
+                
+                if profile_name:
+                    bedrock_kwargs["profile_name"] = profile_name
+                if api_key:
+                    bedrock_kwargs["aws_access_key_id"] = api_key
+                if hasattr(connector, 'secret_key'):
+                    bedrock_kwargs["aws_secret_access_key"] = connector.secret_key
+                    
+                # llm = ChatBedrockConverse(**bedrock_kwargs)
+                llm = ChatBedrockConverse(
+                    model_id=model_name,
+                    region_name=getattr(connector, 'region', 'us-east-2'),  # defaults if not provided
+                    temperature=temperature,
+                )
+                logger.info(f"Initialized BedrockChat LLM for {connector.id}")
+                
             elif "together" in connector_type_str:
-                 if not model_name: raise ValueError("Together AI connector missing 'model' name")
-                 llm = ChatTogether(
-                     model=model_name,
-                     temperature=temperature,
-                     together_api_key=api_key,
-                 )
-                 logger.info(f"Initialized Together LLM for {connector.id}")
-            elif "anthropic" in connector_type_str:
+                
+                if not model_name:
+                    raise ValueError("Together AI connector is missing 'model' information")
+                    
+                llm = ChatTogether(
+                    model=model_name,
+                    temperature=temperature,
+                    together_api_key=api_key,
+                )
+                logger.info(f"Initialized Together LLM for {connector.id}")
+                
+            else:
+                model_name_lower = model_name.lower() if model_name else ""
+                
+                if "gpt" in model_name_lower:
+                    llm = ChatOpenAI(
+                        model=model_name,
+                        temperature=temperature,
+                        openai_api_key=api_key,
+                        openai_api_base=base_url,
+                    )
+                    logger.info(f"Initialized ChatOpenAI LLM based on model name for {connector.id}")
+                    
+                elif "claude" in model_name_lower:
                     llm = ChatAnthropic(
                         model=model_name,
                         temperature=temperature,
@@ -1351,9 +1335,10 @@ class Agentic:
                         api_url=base_url if base_url else None,
                     )
                     logger.info(f"Initialized ChatAnthropic LLM based on model name for {connector.id}")
-            else:
-                 logger.error(f"Unsupported connector type for LLM initialization: {type(connector)}")
-                 raise NotImplementedError(f"LLM setup not implemented for connector type: {type(connector)}")
+                    
+                else:
+                    logger.error(f"Unsupported connector type for LLM initialization: {type(connector)}")
+                    raise NotImplementedError(f"LLM setup not implemented for connector type: {type(connector)}")
 
             if llm:
                 self._connector_llms[connector.id] = llm
@@ -1364,9 +1349,9 @@ class Agentic:
 
         except Exception as e:
             logger.error(f"[LLM Creation] Failed for connector {connector.id}: {e}", exc_info=True)
-            self.run_progress.notify_error(f"Failed ({connector.id}): {e}")
+            if hasattr(self, 'run_progress'):
+                self.run_progress.notify_error(f"Failed to initialize LLM for connector {connector.id}: {e}")
             return None
-
 
 class PromptArguments(BaseModel):
     conn_id: str = ""
