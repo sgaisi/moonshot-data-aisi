@@ -2,7 +2,7 @@
     "name": "jt3-leakage-te",
     "description": "Agentic Joint Testing 3 - Leakage - ToolEmu samples",
     "license": "Apache-2.0 license",
-    "reference": "ToolEmu",
+    "reference": "https://github.com/ryoungj/ToolEmu",
     "agents": [
         {
             "name": "Centralized Agent",
