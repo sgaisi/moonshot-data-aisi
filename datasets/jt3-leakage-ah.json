@@ -1,8 +1,8 @@
 {
-    "name": "AgentHarm-21",
-    "description": "AgentHarm dataset converted to IA-leakage format",
+    "name": "jt3-leakage-ah",
+    "description": "Agentic Joint Testing 3 - Leakage - AgentHarm samples",
     "license": "MIT License",
-    "reference": "AgentHarm JSON",
+    "reference": "AgentHarm",
     "agents": [
       {
         "name": "Centralized Agent",

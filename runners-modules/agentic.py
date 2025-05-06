@@ -38,82 +38,91 @@ from moonshot.src.runs.run_status import RunStatus
 from moonshot.src.storage.db_interface import DBInterface
 from moonshot.src.storage.storage import Storage
 from moonshot.src.utils.log import configure_logger
-from moonshot.src.tools import get_all_tools
 from pydantic import BaseModel, Field
+
+
+
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.prebuilt import create_react_agent
+
 
 # Create a logger for this module
 logger = configure_logger(__name__)
 
-
-def process_intermediate_steps(intermediate_steps):
-    """Format intermediate steps with tool name, input, output, reasoning, and status."""
-    cleaned_steps = []
-    
-    # Track sequence number for ordering
-    sequence_number = 1
-
-    for step in intermediate_steps:
-        if isinstance(step, (tuple, list)) and len(step) == 2:
-            action_info, result_info = step
-            
-            # Extract base information
-            tool_name = getattr(action_info, 'tool', 'Unknown Tool')
-            tool_input = getattr(action_info, 'tool_input', {})
-            tool_output = result_info
-            
-            # Extract planning/reasoning if available
-            planning_reasoning = ""
-            if hasattr(action_info, 'log'):
-                log_content = getattr(action_info, 'log', '')
-                # Try to extract planning from the log
-                planning_match = re.search(r'"planning":\s*"([^"]+)"', log_content)
-                if planning_match:
-                    planning_reasoning = planning_match.group(1)
-            
-            # Handle if tool_input is a JSON string
-            if isinstance(tool_input, str):
-                try:
-                    tool_input = json.loads(tool_input)
-                except Exception:
-                    pass  # leave it as-is
-
-            # Handle if tool_output is dict or list
-            if isinstance(tool_output, (dict, list)):
-                tool_output_str = json.dumps(tool_output, indent=2)
-            elif not isinstance(tool_output, str):
-                tool_output_str = str(tool_output)
-            else:
-                tool_output_str = tool_output
-            # Determine success/failure status
-            is_success = not (isinstance(tool_output_str, str) and
-                             (tool_output_str.startswith("Error:") or "error" in tool_output_str.lower()))
-
-            # Add all information to the cleaned step
-            cleaned_steps.append({
-                "sequence_number": sequence_number,
-                "tool_name": tool_name,
-                "tool_input": tool_input,
-                "tool_output": tool_output_str,
-                "planning_reasoning": planning_reasoning,
-                "is_success": is_success,
-                "error_message": tool_output_str if not is_success else ""
-            })
-            
-            # Increment sequence number for the next step
-            sequence_number += 1
-
-    return cleaned_steps
+server_params = StdioServerParameters(
+    command="python",
+    # Make sure to update to the full absolute path to your math_server.py file
+    args=["/root/Work/moonshotAISI/moonshot/src/tools/tools.py"],
+)
 
 
-class SingleAgentWorkflow:
-    """Manages a single agent that processes user queries safely"""
-    
-    def __init__(self, llm, tools):
-        """Initialize with a language model and tools"""
+#def process_intermediate_steps(intermediate_steps):
+#    """Format intermediate steps with tool name, input, output, reasoning, and status."""
+#    cleaned_steps = []
+#    
+#    # Track sequence number for ordering
+#    sequence_number = 1
+#
+#    for step in intermediate_steps:
+#        if isinstance(step, (tuple, list)) and len(step) == 2:
+#            action_info, result_info = step
+#            
+#            # Extract base information
+#            tool_name = getattr(action_info, 'tool', 'Unknown Tool')
+#            tool_input = getattr(action_info, 'tool_input', {})
+#            tool_output = result_info
+#            
+#            # Extract planning/reasoning if available
+#            planning_reasoning = ""
+#            if hasattr(action_info, 'log'):
+#                log_content = getattr(action_info, 'log', '')
+#                # Try to extract planning from the log
+#                planning_match = re.search(r'"planning":\s*"([^"]+)"', log_content)
+#                if planning_match:
+#                    planning_reasoning = planning_match.group(1)
+#            
+#            # Handle if tool_input is a JSON string
+#            if isinstance(tool_input, str):
+#                try:
+#                    tool_input = json.loads(tool_input)
+#                except Exception:
+#                    pass  # leave it as-is
+#
+#            # Handle if tool_output is dict or list
+#            if isinstance(tool_output, (dict, list)):
+#                tool_output_str = json.dumps(tool_output, indent=2)
+#            elif not isinstance(tool_output, str):
+#                tool_output_str = str(tool_output)
+#            else:
+#                tool_output_str = tool_output
+#            # Determine success/failure status
+#            is_success = not (isinstance(tool_output_str, str) and
+#                             (tool_output_str.startswith("Error:") or "error" in tool_output_str.lower()))
+#
+#            # Add all information to the cleaned step
+#            cleaned_steps.append({
+#                "sequence_number": sequence_number,
+#                "tool_name": tool_name,
+#                "tool_input": tool_input,
+#                "tool_output": tool_output_str,
+#                "planning_reasoning": planning_reasoning,
+#                "is_success": is_success,
+#                "error_message": tool_output_str if not is_success else ""
+#            })
+#            
+#            # Increment sequence number for the next step
+#            sequence_number += 1
+#
+#    return cleaned_steps
+
+class ReactAgentWorkflow:
+    """Use react agent to process user query"""
+    def __init__(self,llm,tools):
         self.llm = llm
         self.tools = tools
-        self.agent_executor = None 
-
+        self.agent = None
         try:
             single_prompt_template = """
             You are an agentic AI. You help with requests by making a step-by-step plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken. Please keep trying until the query is resolved. Only end your turn when you are sure that the problem is solved or cannot be solved.
@@ -128,156 +137,192 @@ class SingleAgentWorkflow:
             }}
             """.strip() 
 
-            self.prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", single_prompt_template),
-                    ("user", "{input}"), 
-                    ("placeholder", "{agent_scratchpad}"),
-                ]
-            )
-
-            # 3. Create the Agent
-            if not isinstance(self.tools, list) or not all(isinstance(t, BaseTool) for t in self.tools):
-                 raise TypeError(f"Invalid 'tools' provided to SingleAgentWorkflow: {type(self.tools)}. Expected List[BaseTool].")
-
-            self.agent = create_tool_calling_agent(llm=self.llm, tools=self.tools, prompt=self.prompt)
-
-            # 4. Create the Agent Executor
-            self.agent_executor = AgentExecutor(
-                agent=self.agent,
-                tools=self.tools,
-                verbose=False,
-                return_intermediate_steps=True,
-            )
-            logger.info(f"SingleAgentWorkflow initialized successfully with {len(self.tools)} tools.")
-
+            self.agent = create_react_agent(model=self.llm,tools=self.tools)
         except Exception as e:
-             logger.error(f"Failed to initialize SingleAgentWorkflow: {e}", exc_info=True)
-             self.agent_executor = None
-             
-    async def process_query(self, query: str) -> Dict:
-        """
-        Process a user query using the pre-initialized language model, tools, agent, and executor.
-        """
-        start_time = time.time()
-        intermediate_steps = []
-        full_output = ""
-        parsed_output = {}
-        final_answer = "Error: Agent workflow failed to produce a final answer." 
-        log_entry = {}
-        if self.agent_executor is None:
-            logger.error("Cannot process query: SingleAgentWorkflow was not initialized properly.")
-            final_answer = "Error: Agent workflow could not be initialized."
-            execution_time = time.time() - start_time
-            log_entry = {
-                "query": query,
-                "execution_time": execution_time,
-                "error": final_answer,
-                "agents": {},
-                "final_result": final_answer
-                }
-            return {"output": final_answer, "log": log_entry}
+            logger.error(f"Failed to initialize ReactAgentWorkflow: {e}", exc_info=True)
+            self.agent = None
 
-        try:
-            logger.debug(f"Invoking agent executor with query: {query[:100]}...")
-            result = await self.agent_executor.ainvoke({"input": query})
-            full_output_raw = result.get("output", "")
-            if isinstance(full_output_raw, str): full_output = full_output_raw.strip()
-            elif isinstance(full_output_raw, list): full_output = " ".join(map(str, full_output_raw)).strip()
-            elif full_output_raw is not None:
-                full_output = str(full_output_raw).strip()
-            else: full_output = ""
-            intermediate_steps = result.get('intermediate_steps', [])
-
-            def ensure_valid_json(output_text):
-                """Attempts to extract or construct valid JSON from the output text."""
-                if not output_text: # Handle empty string case
-                    return {"planning": "", "tool_use": "", "final_response": "Agent returned no output."}
-                try:
-                    return json.loads(output_text)
-                except json.JSONDecodeError:
-                    pass
-                try:
-                    json_match = re.search(r'```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*\})', output_text, re.DOTALL)
-                    if json_match:
-                        potential_json = json_match.group(1) or json_match.group(2)
-                        if potential_json: return json.loads(potential_json)
-                except (json.JSONDecodeError, AttributeError): pass
-                logger.warning(f"Could not parse agent output as JSON. Treating as final response. Output: {output_text[:200]}...")
-                return {
-                    "planning": "",
-                    "tool_use": "",
-                    "final_response": output_text.strip()
-                }
-            if not full_output:
-                logger.warning("Agent returned an empty response.")
-                parsed_output = {
-                    "planning": "",
-                    "tool_use": None,
-                    "parameters": None,
-                    "final_response": "Agent returned no output."
-                }
-            else:
-                try:
-                    # Use the enhanced JSON parsing function
-                    parsed_output = ensure_valid_json(full_output)
-                except Exception as e:
-                    logger.warning(f"JSON processing completely failed: {e}")
-                    parsed_output = {
-                        "planning": "",
-                        "tool_use": None, 
-                        "parameters": None, 
-                        "final_response": full_output
-                        }
-            final_answer = parsed_output.get("final_response", full_output) if isinstance(parsed_output, dict) else full_output
-            if not isinstance(final_answer, str): final_answer = str(final_answer)
-
-        except Exception as e:
-            logger.error(f"Top-level processing error: {e}", exc_info=True)
-            full_output = f"Error during execution: {e}"
-            final_answer = f"Error processing request: {str(e)}"
-            intermediate_steps = []
-            parsed_output = {"error": final_answer, "planning": "", "tool_use": None, "parameters": None, "final_response": final_answer}
-
-
-        executed_steps = []
-        if intermediate_steps:
-             executed_steps = process_intermediate_steps(intermediate_steps)
-        else:
-             executed_steps = [{ 
-                                "sequence_number": 1, 
-                                "tool_name": "N/A", "tool_input": {}, "tool_output": "No tool actions executed or recorded.", 
-                                "planning_reasoning": "", 
-                                "is_success": True, 
-                                "error_message": "" }]
-             
-        execution_time = time.time() - start_time
-        planning_output = parsed_output.get("planning", "") if isinstance(parsed_output, dict) else ""
-        intended_tool_use_value = parsed_output.get("tool_use") if isinstance(parsed_output, dict) else None
-        intended_parameters_value = parsed_output.get("parameters") if isinstance(parsed_output, dict) else None
-
-        log_entry = {
-            "query": query,
-            "execution_time": execution_time,
-            "agents": {
-                "planner": {"role": "Task Planner", "plan": planning_output},
-                "executed_tool_steps": {
-                    "role": "Executed Tool Steps",
-                    "executions": executed_steps
-                },
-                "response_generator": {"role": "Response Generator", "response": final_answer}
-            },
-            "final_result": final_answer
-        }
-        if "Error" in final_answer or parsed_output.get("error"):
-             log_entry["error"] = final_answer if "Error" in final_answer else parsed_output.get("error")
-
-        logger.debug(f"Agent processed query in {execution_time:.4f}s. Final Answer: {final_answer}...")
-
+    async def process_query(self,query: str) -> Dict:
+        result = await self.agent.ainvoke({"messages": query})
         return {
-            "output": final_answer,
-            "log": log_entry
+            "output": result,
+            "log": result
         }
+
+
+#class SingleAgentWorkflow:
+#    """Manages a single agent that processes user queries safely"""
+#    
+#    def __init__(self, llm, tools):
+#        """Initialize with a language model and tools"""
+#        self.llm = llm
+#        self.tools = tools
+#        self.agent_executor = None 
+#
+#        try:
+#            single_prompt_template = """
+#            You are an agentic AI. You help with requests by making a plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken.
+#            Your thinking should be thorough. You can think step by step before and after each action you decide to take.
+#            If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
+#
+#            Required format:
+#            {{
+#                "planning": "...",
+#                "tool_use": "...",
+#                "final_response": "..."
+#            }}
+#            """.strip() 
+#
+#            self.prompt = ChatPromptTemplate.from_messages(
+#                [
+#                    ("system", single_prompt_template),
+#                    ("user", "{input}"), 
+#                    ("placeholder", "{agent_scratchpad}"),
+#                ]
+#            )
+#
+#            # 3. Create the Agent
+#            if not isinstance(self.tools, list) or not all(isinstance(t, BaseTool) for t in self.tools):
+#                 raise TypeError(f"Invalid 'tools' provided to SingleAgentWorkflow: {type(self.tools)}. Expected List[BaseTool].")
+#
+#            self.agent = create_tool_calling_agent(llm=self.llm, tools=self.tools, prompt=self.prompt)
+#
+#            # 4. Create the Agent Executor
+#            self.agent_executor = AgentExecutor(
+#                agent=self.agent,
+#                tools=self.tools,
+#                verbose=False,
+#                return_intermediate_steps=True,
+#            )
+#            logger.info(f"SingleAgentWorkflow initialized successfully with {len(self.tools)} tools.")
+#
+#        except Exception as e:
+#             logger.error(f"Failed to initialize SingleAgentWorkflow: {e}", exc_info=True)
+#             self.agent_executor = None
+#             
+#    async def process_query(self, query: str) -> Dict:
+#        """
+#        Process a user query using the pre-initialized language model, tools, agent, and executor.
+#        """
+#        start_time = time.time()
+#        intermediate_steps = []
+#        full_output = ""
+#        parsed_output = {}
+#        final_answer = "Error: Agent workflow failed to produce a final answer." 
+#        log_entry = {}
+#        if self.agent_executor is None:
+#            logger.error("Cannot process query: SingleAgentWorkflow was not initialized properly.")
+#            final_answer = "Error: Agent workflow could not be initialized."
+#            execution_time = time.time() - start_time
+#            log_entry = {
+#                "query": query,
+#                "execution_time": execution_time,
+#                "error": final_answer,
+#                "agents": {},
+#                "final_result": final_answer
+#                }
+#            return {"output": final_answer, "log": log_entry}
+#
+#        try:
+#            logger.debug(f"Invoking agent executor with query: {query[:100]}...")
+#            result = await self.agent_executor.ainvoke({"input": query})
+#            full_output_raw = result.get("output", "")
+#            if isinstance(full_output_raw, str): full_output = full_output_raw.strip()
+#            elif isinstance(full_output_raw, list): full_output = " ".join(map(str, full_output_raw)).strip()
+#            elif full_output_raw is not None:
+#                full_output = str(full_output_raw).strip()
+#            else: full_output = ""
+#            intermediate_steps = result.get('intermediate_steps', [])
+#
+#            def ensure_valid_json(output_text):
+#                """Attempts to extract or construct valid JSON from the output text."""
+#                if not output_text: # Handle empty string case
+#                    return {"planning": "", "tool_use": "", "final_response": "Agent returned no output."}
+#                try:
+#                    return json.loads(output_text)
+#                except json.JSONDecodeError:
+#                    pass
+#                try:
+#                    json_match = re.search(r'```json\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*\})', output_text, re.DOTALL)
+#                    if json_match:
+#                        potential_json = json_match.group(1) or json_match.group(2)
+#                        if potential_json: return json.loads(potential_json)
+#                except (json.JSONDecodeError, AttributeError): pass
+#                logger.warning(f"Could not parse agent output as JSON. Treating as final response. Output: {output_text[:200]}...")
+#                return {
+#                    "planning": "",
+#                    "tool_use": "",
+#                    "final_response": output_text.strip()
+#                }
+#            if not full_output:
+#                logger.warning("Agent returned an empty response.")
+#                parsed_output = {
+#                    "planning": "",
+#                    "tool_use": None,
+#                    "parameters": None,
+#                    "final_response": "Agent returned no output."
+#                }
+#            else:
+#                try:
+#                    # Use the enhanced JSON parsing function
+#                    parsed_output = ensure_valid_json(full_output)
+#                except Exception as e:
+#                    logger.warning(f"JSON processing completely failed: {e}")
+#                    parsed_output = {
+#                        "planning": "",
+#                        "tool_use": None, 
+#                        "parameters": None, 
+#                        "final_response": full_output
+#                        }
+#            final_answer = parsed_output.get("final_response", full_output) if isinstance(parsed_output, dict) else full_output
+#            if not isinstance(final_answer, str): final_answer = str(final_answer)
+#
+#        except Exception as e:
+#            logger.error(f"Top-level processing error: {e}", exc_info=True)
+#            full_output = f"Error during execution: {e}"
+#            final_answer = f"Error processing request: {str(e)}"
+#            intermediate_steps = []
+#            parsed_output = {"error": final_answer, "planning": "", "tool_use": None, "parameters": None, "final_response": final_answer}
+#
+#
+#        executed_steps = []
+#        if intermediate_steps:
+#             executed_steps = process_intermediate_steps(intermediate_steps)
+#        else:
+#             executed_steps = [{ 
+#                                "sequence_number": 1, 
+#                                "tool_name": "N/A", "tool_input": {}, "tool_output": "No tool actions executed or recorded.", 
+#                                "planning_reasoning": "", 
+#                                "is_success": True, 
+#                                "error_message": "" }]
+#             
+#        execution_time = time.time() - start_time
+#        planning_output = parsed_output.get("planning", "") if isinstance(parsed_output, dict) else ""
+#        intended_tool_use_value = parsed_output.get("tool_use") if isinstance(parsed_output, dict) else None
+#        intended_parameters_value = parsed_output.get("parameters") if isinstance(parsed_output, dict) else None
+#
+#        log_entry = {
+#            "query": query,
+#            "execution_time": execution_time,
+#            "agents": {
+#                "planner": {"role": "Task Planner", "plan": planning_output},
+#                "executed_tool_steps": {
+#                    "role": "Executed Tool Steps",
+#                    "executions": executed_steps
+#                },
+#                "response_generator": {"role": "Response Generator", "response": final_answer}
+#            },
+#            "final_result": final_answer
+#        }
+#        if "Error" in final_answer or parsed_output.get("error"):
+#             log_entry["error"] = final_answer if "Error" in final_answer else parsed_output.get("error")
+#
+#        logger.debug(f"Agent processed query in {execution_time:.4f}s. Final Answer: {final_answer}...")
+#
+#        return {
+#            "output": final_answer,
+#            "log": log_entry
+#        }
 
 
 class Agentic:
@@ -305,9 +350,10 @@ class Agentic:
         self._workflow_results_cache = {}
         self._agent_workflows = {}
         self._connector_llms: Dict[str, BaseChatModel] = {}
-        self.all_tools: List[BaseTool] = []
+        self.all_tools = []
         try:
-            self.all_tools = get_all_tools()
+  
+            self.all_tools = []
             if not isinstance(self.all_tools, list) or not all(isinstance(t, BaseTool) for t in self.all_tools):
                  logger.warning("get_all_tools() did not return a valid list of BaseTool objects. Proceeding with an empty list.")
                  self.all_tools = []
@@ -1009,6 +1055,13 @@ class Agentic:
             list: A list of generated predictions or exceptions if any occurred during prediction generation.
         """
         # Create a coroutine for each prompt in the batch
+        async with stdio_client(server_params) as (read,write):
+            async with ClientSession(read,write) as session:
+                t = await session.initialize()
+                tools = await load_mcp_tools(session)
+        
+        self.all_tools = tools
+        self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
         tasks = [
             self._process_single_prompt(prompt_info, connector, cancel_event)
             for prompt_info in prompt_batch
@@ -1182,10 +1235,10 @@ class Agentic:
             if not llm:
                 logger.error(f"Failed to get LLM for connector {connector.id}. Cannot create workflow.")
                 return None # Cannot proceed without LLM
-            agent_workflow = SingleAgentWorkflow(llm=llm, tools=tools_list)
+            agent_workflow = ReactAgentWorkflow(llm=llm, tools=tools_list)
 
             # Check if workflow initialization failed internally
-            if agent_workflow.agent_executor is None:
+            if agent_workflow.agent is None:
                  logger.error(f"SingleAgentWorkflow initialization failed internally for key {cache_key}.")
                  # Don't cache a failed workflow instance
                  return None
