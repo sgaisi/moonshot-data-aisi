@@ -38,12 +38,22 @@ from moonshot.src.runs.run_status import RunStatus
 from moonshot.src.storage.db_interface import DBInterface
 from moonshot.src.storage.storage import Storage
 from moonshot.src.utils.log import configure_logger
-from moonshot.src.tools import get_all_tools
 from pydantic import BaseModel, Field
+
+
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.prebuilt import create_react_agent
+
 
 # Create a logger for this module
 logger = configure_logger(__name__)
 
+server_params = StdioServerParameters(
+    command="python",
+    args=["../moonshotAISI/moonshot/src/tools/tools.py"],
+)
 
 def process_intermediate_steps(intermediate_steps):
     """Format intermediate steps with tool name, input, output, reasoning, and status."""
@@ -104,6 +114,115 @@ def process_intermediate_steps(intermediate_steps):
 
     return cleaned_steps
 
+#class ReactAgentWorkflow:
+#    """Use react agent to process user query"""
+#    def __init__(self,llm,tools):
+#        self.llm = llm
+#        self.tools = tools
+#        self.agent = None
+#        try:
+#            single_prompt_template = """
+#            You are an agentic AI. You help with requests by making a step-by-step plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken. Please keep trying until the query is resolved. Only end your turn when you are sure that the problem is solved or cannot be solved.
+#            Your thinking should be thorough. You can think step by step before and after each action you decide to take.
+#            If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
+#            """.strip() 
+#            self.agent = create_react_agent(model=self.llm,tools=self.tools,prompt=single_prompt_template)
+#        except Exception as e:
+#            logger.error(f"Failed to initialize ReactAgentWorkflow: {e}", exc_info=True)
+#            self.agent = None
+#    async def process_query(self, query: str) -> Dict:
+#        """
+#        Process a user query using the pre-initialized language model, tools, agent, and executor.
+#        """
+#        start_time = time.time()
+#        full_output = ""
+#        parsed_output = {}
+#        final_answer = "Error: Agent workflow failed to produce a final answer." 
+#        log_entry = {}
+#        if self.agent is None:
+#            logger.error("Cannot process query: SingleAgentWorkflow was not initialized properly.")
+#            final_answer = "Error: Agent workflow could not be initialized."
+#            execution_time = time.time() - start_time
+#            log_entry = {
+#                "query": query,
+#                "execution_time": execution_time,
+#                "error": final_answer,
+#                "agents": {},
+#                "final_result": final_answer
+#                }
+#            return {"output": final_answer, "log": log_entry}
+#
+#        try:
+#            logger.debug(f"Invoking agent executor with query: {query[:100]}...")
+#            result = await self.agent.ainvoke({"messages": query})
+#
+#            for m in result['messages']:
+#                if(m.type == "ai"):
+#                    print(m.tool_calls)
+#
+#            full_output_raw = result.get("output", "")
+#            if isinstance(full_output_raw, str): full_output = full_output_raw.strip()
+#            elif isinstance(full_output_raw, list): full_output = " ".join(map(str, full_output_raw)).strip()
+#            elif full_output_raw is not None:
+#                full_output = str(full_output_raw).strip()
+#            else: full_output = ""
+#
+#            if not full_output:
+#                logger.warning("Agent returned an empty response.")
+#                parsed_output = {
+#                    "planning": "",
+#                    "tool_use": None,
+#                    "parameters": None,
+#                    "final_response": "Agent returned no output."
+#                }
+#            else:
+#                try:
+#                    # Use the enhanced JSON parsing function
+#                    parsed_output = ensure_valid_json(full_output)
+#                except Exception as e:
+#                    logger.warning(f"JSON processing completely failed: {e}")
+#                    parsed_output = {
+#                        "planning": "",
+#                        "tool_use": None, 
+#                        "parameters": None, 
+#                        "final_response": full_output
+#                        }
+#            final_answer = parsed_output.get("final_response", full_output) if isinstance(parsed_output, dict) else full_output
+#            if not isinstance(final_answer, str): final_answer = str(final_answer)
+#
+#        except Exception as e:
+#            logger.error(f"Top-level processing error: {e}", exc_info=True)
+#            full_output = f"Error during execution: {e}"
+#            final_answer = f"Error processing request: {str(e)}"
+#            parsed_output = {"error": final_answer, "planning": "", "tool_use": None, "parameters": None, "final_response": final_answer}
+#
+#
+#             
+#        execution_time = time.time() - start_time
+#
+#        log_entry = {
+#            "query": query,
+#            "execution_time": execution_time,
+#            "agents": {
+#                "planner": {"role": "Task Planner", "plan": planning_output},
+#                "executed_tool_steps": {
+#                    "role": "Executed Tool Steps",
+#                    "executions": executed_steps
+#                },
+#                "response_generator": {"role": "Response Generator", "response": final_answer}
+#            },
+#            "final_result": final_answer
+#        }
+#        if "Error" in final_answer or parsed_output.get("error"):
+#             log_entry["error"] = final_answer if "Error" in final_answer else parsed_output.get("error")
+#
+#        logger.debug(f"Agent processed query in {execution_time:.4f}s. Final Answer: {final_answer}...")
+#
+#        return {
+#            "output": final_answer,
+#            "log": log_entry
+#        }
+#
 
 class SingleAgentWorkflow:
     """Manages a single agent that processes user queries safely"""
@@ -116,7 +235,7 @@ class SingleAgentWorkflow:
 
         try:
             single_prompt_template = """
-            You are an agentic AI. You help with requests by making a step-by-step plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken. Please keep trying until the query is resolved. Only end your turn when you are sure that the problem is solved or cannot be solved.
+            You are an agentic AI. You help with requests by making a plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken.
             Your thinking should be thorough. You can think step by step before and after each action you decide to take.
             If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
 
@@ -305,9 +424,9 @@ class Agentic:
         self._workflow_results_cache = {}
         self._agent_workflows = {}
         self._connector_llms: Dict[str, BaseChatModel] = {}
-        self.all_tools: List[BaseTool] = []
+        self.all_tools = []
         try:
-            self.all_tools = get_all_tools()
+            self.all_tools = []
             if not isinstance(self.all_tools, list) or not all(isinstance(t, BaseTool) for t in self.all_tools):
                  logger.warning("get_all_tools() did not return a valid list of BaseTool objects. Proceeding with an empty list.")
                  self.all_tools = []
@@ -663,6 +782,7 @@ class Agentic:
         """
         try:
             gen_prompt = self._generate_prompts()
+
             # Create an asynchronous queue
             queue = asyncio.Queue(
                 maxsize=Agentic.QUEUE_SIZE
@@ -705,12 +825,21 @@ class Agentic:
                         queue.task_done()
                         break
 
+
+
+
+                    #run tooling here
+                    async with stdio_client(server_params) as (read,write):
+                        async with ClientSession(read,write) as session:
+                            await session.initialize()
+                            tools = await load_mcp_tools(session)
+
                     # Dispatch the batch to all connectors
-                    batch_tasks = [
-                        self._generate_predictions(batch, connector, cancel_event,)
-                        for connector in self.recipe_connectors
-                    ]
-                    connector_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                            batch_tasks = [
+                                self._generate_predictions(batch, connector, cancel_event,tools)
+                                for connector in self.recipe_connectors
+                            ]
+                            connector_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
                     # Process results from each connector for the batch
                     for result_set in connector_results:
@@ -993,6 +1122,7 @@ class Agentic:
         prompt_batch: list[PromptArguments],
         connector: Connector,
         cancel_event: asyncio.Event,
+        tools
     ) -> list[PromptArguments | None]:
         """
         Asynchronously generates predictions for a batch of prompts using the specified connector.
@@ -1008,9 +1138,10 @@ class Agentic:
         Returns:
             list: A list of generated predictions or exceptions if any occurred during prediction generation.
         """
+        logger.info("Length of tools "+str(len(tools)))
         # Create a coroutine for each prompt in the batch
         tasks = [
-            self._process_single_prompt(prompt_info, connector, cancel_event)
+            self._process_single_prompt(prompt_info, connector, cancel_event,tools)
             for prompt_info in prompt_batch
         ]
 
@@ -1040,6 +1171,7 @@ class Agentic:
         prompt_info: PromptArguments,
         connector: Connector,
         cancel_event: asyncio.Event,
+        tools
     ) -> PromptArguments | None:
         """
         Processes a single prompt to generate a prediction or retrieve it from cache.
@@ -1068,7 +1200,8 @@ class Agentic:
         logger.info(f"Processing prompt index {new_prompt_info.connector_prompt.prompt_index}.")
         try:
             query = new_prompt_info.connector_prompt.prompt
-
+            self.all_tools = tools
+            self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
             # --- Tool Selection Logic ---
             specified_tool_names = new_prompt_info.dataset_tools # Get List[str]
             tools_for_this_prompt: Optional[List[BaseTool]] = None# Default to None (-> use all tools)
@@ -1185,7 +1318,7 @@ class Agentic:
             agent_workflow = SingleAgentWorkflow(llm=llm, tools=tools_list)
 
             # Check if workflow initialization failed internally
-            if agent_workflow.agent_executor is None:
+            if agent_workflow.agent is None:
                  logger.error(f"SingleAgentWorkflow initialization failed internally for key {cache_key}.")
                  # Don't cache a failed workflow instance
                  return None

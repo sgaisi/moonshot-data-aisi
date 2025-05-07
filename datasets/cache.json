@@ -34,5 +34,29 @@
     "license": "MIT License",
     "agents": null,
     "hash": "1ca2f119f15c718f"
+  },
+  "ia-leakage": {
+    "id": "ia-leakage",
+    "name": "IA-leakage",
+    "description": "Agentic Joint Testing 3",
+    "examples": null,
+    "num_of_dataset_prompts": 25,
+    "created_date": "2025-05-05 07:53:48",
+    "reference": "InjecAgent",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "d1e743ca624e4e31"
+  },
+  "jt3test": {
+    "id": "jt3test",
+    "name": "J3 Test",
+    "description": "Agentic Joint Testing 3",
+    "examples": null,
+    "num_of_dataset_prompts": 2,
+    "created_date": "2025-05-06 18:07:21",
+    "reference": "InjecAgent",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "d69f884d89654229"
   }
 }
