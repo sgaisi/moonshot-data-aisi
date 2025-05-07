@@ -18,7 +18,7 @@ logger = configure_logger(__name__)
 # These should match your existing connector endpoint file names
 DEFAULT_EVALUATION_ENDPOINTS = [
     'together-gemma2-27b',
-    "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
+    # "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
 ]
 
 
@@ -396,91 +396,109 @@ class JointTesting3(MetricInterface):
             "configurations": self.configurations,
         }
 
-    def _extract_steps_from_context(self, context):
-        """Extract detailed steps from agent context including tool usage details"""
-        steps = {}
-        
-        if isinstance(context, dict):
-            # Extract planning step
-            if "agents" in context and "planner" in context["agents"]:
-                planner_data = context["agents"]["planner"]
-                if isinstance(planner_data, dict):
-                    if "plan" in planner_data:
-                        steps["Task Planning"] = planner_data["plan"]
-                    elif "planning" in planner_data:
-                        steps["Task Planning"] = planner_data["planning"]
-                    elif "role" in planner_data and isinstance(planner_data.get("role"), str):
-                        steps["Task Planning"] = planner_data.get("role")
-            
-            # Extract tool executions
-            if "agents" in context and "tool_use" in context["agents"]:
-                tool_use_data = context["agents"]["tool_use"]
-                
-                if isinstance(tool_use_data, dict):
-                    # Case 1: Already processed executions in the expected format
-                    if "executions" in tool_use_data and isinstance(tool_use_data["executions"], list):
-                        # Executions are already in our expected format
-                        steps["Tool Usage"] = {
-                            "role": "Tool Usage",
-                            "executions": tool_use_data["executions"]
-                        }
-                    # Case 2: Executions are a JSON string that needs parsing
-                    elif "executions" in tool_use_data and isinstance(tool_use_data["executions"], str):
-                        try:
-                            # Try parsing the string as JSON
-                            raw_executions = json.loads(tool_use_data["executions"])
-                            processed_executions = []
-                            
-                            # Process each execution in the parsed JSON
-                            if isinstance(raw_executions, list):
-                                for execution_pair in raw_executions:
-                                    if isinstance(execution_pair, list) and len(execution_pair) >= 2:
-                                        tool_call = execution_pair[0]
-                                        tool_result = execution_pair[1]
-                                        
-                                        # Extract basic info and add to processed executions
-                                        if isinstance(tool_call, dict) and "kwargs" in tool_call:
-                                            kwargs = tool_call.get("kwargs", {})
-                                            processed_executions.append({
-                                                "tool_name": kwargs.get("tool", "unknown_tool"),
-                                                "tool_input": kwargs.get("tool_input", {}),
-                                                "tool_output": tool_result
-                                            })
-                            
-                            steps["Tool Usage"] = {
-                                "role": "Tool Usage",
-                                "executions": processed_executions
-                            }
-                        except json.JSONDecodeError:
-                            # If parsing fails, just use the raw string
-                            steps["Tool Usage Raw"] = tool_use_data["executions"]
-                    # Case 3: Different structure - use what we have
-                    else:
-                        steps["Tool Usage"] = tool_use_data
-            
-            # Extract intermediate_steps if present in the original format
-            if "intermediate_steps" in context:
-                intermediate_steps = context["intermediate_steps"]
-                if isinstance(intermediate_steps, list):
-                    processed_steps = self.process_intermediate_steps(intermediate_steps)
-                    if not "Tool Usage" in steps:  # Only add if not already added
-                        steps["Tool Usage"] = {
-                            "role": "Tool Usage",
-                            "executions": processed_steps
-                        }
-            
-            # Extract response generation
-            if "agents" in context and "response_generator" in context["agents"]:
-                response_gen = context["agents"]["response_generator"]
-                if isinstance(response_gen, dict) and "response" in response_gen:
-                    steps["Response Generation"] = response_gen["response"]
-            
-            # If there's a final_result directly in the context, include it
-            if "final_result" in context:
-                steps["Final Result"] = context["final_result"]
-        
-        return steps
+    def _extract_steps_from_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extracts agent steps from the context (log_entry from ReactAgentWorkflow)
+        and formats them for the evaluation prompt.
+        "Response Generation" field is intentionally omitted from the output.
+        """
+        steps_for_eval_prompt: Dict[str, Any] = {}
 
+        if not isinstance(context, dict):
+            logger.warning(f"Context provided to _extract_steps_from_context is not a dictionary (type: {type(context)}). Steps will be incomplete.")
+            # Provide a default structure (without "Response Generation")
+            return {
+                "Task Planning": "Context not available or not a dictionary.",
+                "Tool Usage": {"role": "Tool Usage", "executions": []},
+                "Final Result": "Context not available or not a dictionary."
+            }
+
+        agents_data = context.get("agents")
+        if isinstance(agents_data, dict):
+            # Planner information
+            planner_info = agents_data.get("planner")
+            if isinstance(planner_info, dict) and planner_info.get("plan"):
+                steps_for_eval_prompt["Task Planning"] = planner_info["plan"]
+            else:
+                executed_tool_steps_info_for_plan = agents_data.get("executed_tool_steps")
+                if isinstance(executed_tool_steps_info_for_plan, dict):
+                    executions_for_plan = executed_tool_steps_info_for_plan.get("executions")
+                    if isinstance(executions_for_plan, list) and len(executions_for_plan) > 0:
+                        first_execution_for_plan = executions_for_plan[0]
+                        if isinstance(first_execution_for_plan, dict) and first_execution_for_plan.get("planning_reasoning"):
+                            steps_for_eval_prompt["Task Planning"] = first_execution_for_plan["planning_reasoning"]
+                        else:
+                            steps_for_eval_prompt["Task Planning"] = "Initial planning/reasoning not explicitly found."
+                    else:
+                        steps_for_eval_prompt["Task Planning"] = "Planner info available but plan/initial reasoning was empty or no tools executed."
+                else:
+                    steps_for_eval_prompt["Task Planning"] = "Planner info not available or plan was empty."
+            
+            # Executed tool steps
+            executed_tool_steps_info = agents_data.get("executed_tool_steps")
+            if isinstance(executed_tool_steps_info, dict):
+                executions = executed_tool_steps_info.get("executions")
+                if isinstance(executions, list) and executions: 
+                    steps_for_eval_prompt["Tool Usage"] = {
+                        "role": executed_tool_steps_info.get("role", "Executed Tool Steps"),
+                        "executions": executions
+                    }
+                elif isinstance(executions, list) and not executions: 
+                    steps_for_eval_prompt["Tool Usage"] = {
+                        "role": executed_tool_steps_info.get("role", "Executed Tool Steps"),
+                        "executions": []
+                    }
+                else: 
+                    logger.warning("Executions data under 'executed_tool_steps' is not a list or is missing.")
+                    steps_for_eval_prompt["Tool Usage"] = {"role": "Tool Usage", "executions": []}
+            else:
+                logger.debug("No 'executed_tool_steps' dict found in agents data; Tool Usage will be empty.")
+                steps_for_eval_prompt["Tool Usage"] = {"role": "Tool Usage", "executions": []}
+            
+            # REMOVED: Response generator information - We no longer add "Response Generation"
+            # response_generator_info = agents_data.get("response_generator")
+            # if isinstance(response_generator_info, dict) and response_generator_info.get("response"):
+            #     steps_for_eval_prompt["Response Generation"] = response_generator_info["response"]
+            # else:
+            #     steps_for_eval_prompt["Response Generation"] = "Response_generator info not available."
+        
+        else: # No 'agents' dictionary in context
+            logger.warning(f"No 'agents' dictionary found in context. Steps for evaluation prompt will be minimal. Context: {str(context)[:200]}")
+            steps_for_eval_prompt["Task Planning"] = "No 'agents' data in context."
+            steps_for_eval_prompt["Tool Usage"] = {"role": "Tool Usage", "executions": []}
+            # REMOVED: steps_for_eval_prompt["Response Generation"] = "No 'agents' data in context."
+
+        # Final result from the context root
+        final_result = context.get("final_result")
+        if final_result:
+            steps_for_eval_prompt["Final Result"] = final_result
+        # The elif condition that relied on "Response Generation" is no longer needed here for Final Result fallback
+        # as "Response Generation" itself is removed. "final_result" from context is the primary source.
+        elif "Final Result" not in steps_for_eval_prompt: # Ensure Final Result has a default if not found.
+            steps_for_eval_prompt["Final Result"] = "Final result not found in context."
+            
+        # Ensure essential keys (excluding "Response Generation") exist for _create_evaluation_prompt
+        if "Task Planning" not in steps_for_eval_prompt:
+            steps_for_eval_prompt["Task Planning"] = "Task planning information not available."
+        if "Tool Usage" not in steps_for_eval_prompt:
+            steps_for_eval_prompt["Tool Usage"] = {
+                "role": "Tool Usage", 
+                "executions": []
+            }
+        elif not isinstance(steps_for_eval_prompt["Tool Usage"].get("executions"), list):
+            logger.warning("Corrected 'Tool Usage' to have an 'executions' list because it was missing or not a list.")
+            steps_for_eval_prompt["Tool Usage"]["executions"] = []
+        
+        # REMOVED: Defaulting for "Response Generation"
+        # if "Response Generation" not in steps_for_eval_prompt:
+        #     steps_for_eval_prompt["Response Generation"] = "Response generation information not available."
+
+        if "Final Result" not in steps_for_eval_prompt: # Redundant check if already handled above, but safe.
+             steps_for_eval_prompt["Final Result"] = "Final result information not available."
+
+        return steps_for_eval_prompt
+    
+    
     async def _process_evaluation(self, index, prompt, result, target, context,dataset_tools: List[str]):
         """Process a single evaluation by running it through the judges"""
         try:
