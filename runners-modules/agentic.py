@@ -41,11 +41,21 @@ from moonshot.src.runs.run_status import RunStatus
 from moonshot.src.storage.db_interface import DBInterface
 from moonshot.src.storage.storage import Storage
 from moonshot.src.utils.log import configure_logger
-from moonshot.src.tools import get_all_tools
 from pydantic import BaseModel, Field
+
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
 
 # Create a logger for this module
 logger = configure_logger(__name__)
+
+server_params = StdioServerParameters(
+
+    command="python",
+    args=["../moonshotAISI/moonshot/src/tools/tools.py"],
+
+)
 
 
 def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict]:
@@ -227,8 +237,8 @@ class Agentic:
         FROM runner_cache_table
         WHERE connection_id=? AND recipe_id=? AND dataset_id=? AND prompt_template_id=? AND prompt=?
     """
-    BATCH_SIZE = 10
-    QUEUE_SIZE = 10
+    BATCH_SIZE = 5
+    QUEUE_SIZE = 5
 
     def __init__(self):
         self._workflow_results_cache = {}
@@ -236,7 +246,6 @@ class Agentic:
         self._connector_llms: Dict[str, BaseChatModel] = {}
         self.all_tools: List[BaseTool] = []
         try:
-            self.all_tools = get_all_tools()
             if not isinstance(self.all_tools, list) or not all(isinstance(t, BaseTool) for t in self.all_tools):
                  logger.warning("get_all_tools() did not return a valid list of BaseTool objects. Proceeding with an empty list.")
                  self.all_tools = []
@@ -633,13 +642,16 @@ class Agentic:
                         )
                         queue.task_done()
                         break
-
-                    # Dispatch the batch to all connectors
-                    batch_tasks = [
-                        self._generate_predictions(batch, connector, cancel_event,)
-                        for connector in self.recipe_connectors
-                    ]
-                    connector_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                    async with stdio_client(server_params) as (read,write):
+                        async with ClientSession(read,write) as session:
+                            await session.initialize()
+                            tools = await load_mcp_tools(session)
+                            # Dispatch the batch to all connectors
+                            batch_tasks = [
+                                self._generate_predictions(batch, connector, cancel_event,tools)
+                                for connector in self.recipe_connectors
+                            ]
+                            connector_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
                     # Process results from each connector for the batch
                     for result_set in connector_results:
@@ -922,7 +934,9 @@ class Agentic:
         prompt_batch: list[PromptArguments],
         connector: Connector,
         cancel_event: asyncio.Event,
+        tools
     ) -> list[PromptArguments | None]:
+        logger.info("Length of tools "+str(len(tools)))
         """
         Asynchronously generates predictions for a batch of prompts using the specified connector.
         This method takes a batch of PromptArguments, which contain information about the prompts to be processed,
@@ -939,7 +953,7 @@ class Agentic:
         """
         # Create a coroutine for each prompt in the batch
         tasks = [
-            self._process_single_prompt(prompt_info, connector, cancel_event)
+            self._process_single_prompt(prompt_info, connector, cancel_event,tools)
             for prompt_info in prompt_batch
         ]
 
@@ -969,6 +983,7 @@ class Agentic:
         prompt_info: PromptArguments,
         connector: Connector,
         cancel_event: asyncio.Event,
+        tools
     ) -> PromptArguments | None:
         """
         Processes a single prompt to generate a prediction or retrieve it from cache.
@@ -997,6 +1012,9 @@ class Agentic:
         logger.info(f"Processing prompt index {new_prompt_info.connector_prompt.prompt_index}.")
         try:
             query = new_prompt_info.connector_prompt.prompt
+
+            self.all_tools = tools
+            self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
 
             # --- Tool Selection Logic ---
             specified_tool_names = new_prompt_info.dataset_tools # Get List[str]

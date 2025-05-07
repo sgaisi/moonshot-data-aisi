@@ -7,7 +7,7 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3test"
+        "jt3-leakage-te"
     ],
     "prompt_templates": [],
     "metrics": [

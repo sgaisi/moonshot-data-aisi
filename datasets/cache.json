@@ -52,11 +52,59 @@
     "name": "J3 Test",
     "description": "Agentic Joint Testing 3",
     "examples": null,
-    "num_of_dataset_prompts": 2,
-    "created_date": "2025-05-06 18:07:21",
+    "num_of_dataset_prompts": 1,
+    "created_date": "2025-05-07 07:54:29",
     "reference": "InjecAgent",
     "license": "MIT License",
     "agents": null,
-    "hash": "d69f884d89654229"
+    "hash": "39922797ffa0e06e"
+  },
+  "jt3-leakage-ah": {
+    "id": "jt3-leakage-ah",
+    "name": "jt3-leakage-ah",
+    "description": "Agentic Joint Testing 3 - Leakage - AgentHarm samples",
+    "examples": null,
+    "num_of_dataset_prompts": 4,
+    "created_date": "2025-05-06 20:51:55",
+    "reference": "AgentHarm",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "ea81a6ca25591881"
+  },
+  "jt3-leakage-asb": {
+    "id": "jt3-leakage-asb",
+    "name": "jt3-leakage-asb",
+    "description": "Agentic Joint Testing 3 - Leakage - Agent-SafetyBench samples",
+    "examples": null,
+    "num_of_dataset_prompts": 21,
+    "created_date": "2025-05-07 06:14:31",
+    "reference": "https://github.com/thu-coai/Agent-SafetyBench",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "686e6dc8c0119620"
+  },
+  "jt3-leakage-ia": {
+    "id": "jt3-leakage-ia",
+    "name": "jt3-leakage-ia",
+    "description": "Agentic Joint Testing 3 - Leakage - InjecAgent samples",
+    "examples": null,
+    "num_of_dataset_prompts": 25,
+    "created_date": "2025-05-06 20:51:55",
+    "reference": "https://github.com/uiuc-kang-lab/InjecAgent",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "b1a8a16742edcaf4"
+  },
+  "jt3-leakage-te": {
+    "id": "jt3-leakage-te",
+    "name": "jt3-leakage-te",
+    "description": "Agentic Joint Testing 3 - Leakage - ToolEmu samples",
+    "examples": null,
+    "num_of_dataset_prompts": 25,
+    "created_date": "2025-05-07 06:14:31",
+    "reference": "https://github.com/ryoungj/ToolEmu",
+    "license": "Apache-2.0 license",
+    "agents": null,
+    "hash": "5a6f4326978e926f"
   }
 }
