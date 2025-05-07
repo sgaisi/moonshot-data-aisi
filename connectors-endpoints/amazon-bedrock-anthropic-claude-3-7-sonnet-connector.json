@@ -1,5 +1,5 @@
 {
-    "name": "Amazon Bedrock - Anthropic Claude 3.5 Sonnet",
+    "name": "Amazon Bedrock - Anthropic Claude 3.7 Sonnet",
     "connector_type": "amazon-bedrock-connector",
     "uri": "DEFAULT",
     "token": "Use environment variables!",
@@ -9,6 +9,6 @@
     "params": {
         "timeout": 300,
         "max_attempts": 3,
-        "temperature": 0.5
+        "temperature": 0
     }
 }

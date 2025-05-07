@@ -9,6 +9,6 @@
     "params": {
         "allow_retries": true,
         "num_of_retries": 3,
-        "temperature": 0.5
+        "temperature": 0
     }
 }
