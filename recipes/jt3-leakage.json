@@ -1,15 +1,16 @@
 {
-    "name": "Agent Safety Benchmark - Joint Testing 3 - English",
+    "name": "Joint Testing 3 - Leakage - English",
     "description": 
-    "This recipe is created for the 3rd Joint Testing. The 3rd Joint Testing is focusing on Agentic Testing.",
+    "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning data leakage risks.",
     "tags": [],
     "categories": [
         "Trust & Safety"
     ],
     "datasets": [
+        "jt3-leakage-ah",
         "jt3-leakage-asb",
         "jt3-leakage-ia",
-        "jt3-leakage-ah"
+        "jt3-leakage-te"
     ],
     "prompt_templates": [],
     "metrics": [
