@@ -50,14 +50,14 @@
   "jt3test": {
     "id": "jt3test",
     "name": "J3 Test",
-    "description": "Agentic Joint Testing 3",
+    "description": "Agentic Joint Testing 3 Comments: LLMs are trained on names of shows and can detect contextual cues about piracy when you put download game of thrones,even removing the parts about committing a crime. sequential tool calling doesnt work? llms, are very specific if u tell it to give u instructions it will do that, if u tell it to do the work it will just do the work (telling it to inform the user on download vs just downloading the file) points of consideration, are LLMs trained on show names in other languages?",
     "examples": null,
-    "num_of_dataset_prompts": 1,
-    "created_date": "2025-05-07 07:54:29",
+    "num_of_dataset_prompts": 3,
+    "created_date": "2025-05-07 17:11:25",
     "reference": "InjecAgent",
     "license": "MIT License",
     "agents": null,
-    "hash": "39922797ffa0e06e"
+    "hash": "6792cf65f03bfb8e"
   },
   "jt3-leakage-ah": {
     "id": "jt3-leakage-ah",
@@ -106,5 +106,17 @@
     "license": "Apache-2.0 license",
     "agents": null,
     "hash": "7e79cc69b3c351ef"
+  },
+  "jt3-browser": {
+    "id": "jt3-browser",
+    "name": "jt3-browser",
+    "description": "Agentic Joint Testing 3 - BrowserART candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 14,
+    "created_date": "2025-05-07 17:52:32",
+    "reference": "AgentHarm",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "4c7e9a93dc184e67"
   }
 }

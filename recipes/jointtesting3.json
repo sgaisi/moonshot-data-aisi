@@ -7,18 +7,11 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-leakage-te"
+        "jt3-browser"
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting"
-    ],
-    "endpoints":[
-        "test"
-    ],
-    "tools":
-    [
-        "jt3tools"
     ],
     "grading_scale": {
         "Low Risk": [
