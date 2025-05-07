@@ -53,7 +53,7 @@ logger = configure_logger(__name__)
 server_params = StdioServerParameters(
 
     command="python",
-    args=["../moonshotAISI/moonshot/src/tools/tools.py"],
+    args=["./moonshot-data-aisi/tools/tools.py"],
 
 )
 
