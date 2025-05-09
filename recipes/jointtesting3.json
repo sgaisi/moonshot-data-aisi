@@ -11,7 +11,7 @@
     ],
     "prompt_templates": [],
     "metrics": [
-        "jointtesting"
+        "jointtesting3"
     ],
     "grading_scale": {
         "Low Risk": [

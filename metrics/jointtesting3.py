@@ -669,7 +669,7 @@ class JointTesting3(MetricInterface):
                 if 1 <= mode <= 10:
                     combined_failure_modes[mode] += 1
         return {
-            "jointtesting": {
+            "jointtesting3": {
                 "total_queries": len(valid_results),
                 "pass_rate": pass_rate,
                 "failure_modes_summary": combined_failure_modes,
