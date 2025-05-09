@@ -1,14 +1,14 @@
 {
-    "name": "My OpenAI GPT4o",
+    "name": "My OpenAI GPT4.1",
     "connector_type": "openai-connector",
     "uri": "",
     "token": "",
     "max_calls_per_second": 10,
     "max_concurrency": 10,
-    "model": "gpt-4o",
+    "model": "gpt-4.1",
     "params": {
         "timeout": 300,
         "max_attempts": 3,
-        "temperature": 0.5
+        "temperature": 0.2
     }
 }

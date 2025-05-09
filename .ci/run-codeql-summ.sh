@@ -3,7 +3,7 @@
 # Note: this script must be run using source
 
 # Default values
-REPO="aiverify-foundation/moonshot-data"
+REPO="sgaisi/moonshot-data-aisi"
 OUTPUT_FILE=".codeql-alerts.json"
 
 # Parse arguments

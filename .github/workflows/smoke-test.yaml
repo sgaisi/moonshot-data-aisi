@@ -45,14 +45,14 @@ jobs:
       if: github.event_name == 'pull_request_review'
       uses: actions/checkout@v4
       with:
-          repository: aiverify-foundation/moonshot
+          repository: sgaisi/moonshotAISI
           ref: ${{ vars.MOONSHOT_BRANCH }}
 
     - name: Checkout Moonshot (Workflow Dispatch)
       if: github.event_name == 'workflow_dispatch'
       uses: actions/checkout@v4
       with:
-          repository: aiverify-foundation/moonshot
+          repository: sgaisi/moonshotAISI
           ref: ${{ inputs.moonshot_branch }}
     
     - name: Setup Python 3.11
@@ -80,7 +80,7 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       uses: actions/checkout@v4
       with: 
-         repository: aiverify-foundation/moonshot-data
+         repository: sgaisi/moonshot-data-aisi
          ref: ${{ inputs.moonshot_data_branch }}
          path: moonshot-data
 
@@ -94,7 +94,7 @@ jobs:
       if: github.event_name == 'pull_request_review'
       uses: actions/checkout@v4
       with:
-        repository: aiverify-foundation/moonshot-ui
+        repository: sgaisi/moonshot-ui-aisi
         ref: ${{ vars.MOONSHOT_UI_BRANCH }}
         path: moonshot-ui
 
@@ -102,7 +102,7 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       uses: actions/checkout@v4
       with:
-        repository: aiverify-foundation/moonshot-ui
+        repository: sgaisi/moonshot-ui-aisi
         ref: ${{ inputs.moonshot_ui_branch }}
         path: moonshot-ui
     
@@ -118,7 +118,7 @@ jobs:
     - name: Checkout Smoke Test 
       uses: actions/checkout@v4
       with:
-          repository: aiverify-foundation/moonshot-smoke-testing
+          repository: sgaisi/moonshot-smoke-testing-aisi
           path: moonshot-smoke-testing
 
     - name: Run Smoke Test
