@@ -16,6 +16,9 @@
     "metrics": [
         "jointtesting3"
     ],
+    "tools": [
+        "jointtesting3"
+    ],
     "grading_scale": {
         "Low Risk": [
             80,

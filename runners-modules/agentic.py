@@ -50,12 +50,18 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 # Create a logger for this module
 logger = configure_logger(__name__)
 
-server_params = StdioServerParameters(
 
+
+def get_tools(tool_loc : list[str]):
+    base_loc = "moonshot-data-aisi/tools/"
+    #currently getting only the first file
+    final_loc = base_loc+tool_loc[0]+".py"
+    server_params = StdioServerParameters(
     command="python",
-    args=["./moonshot-data-aisi/tools/tools.py"],
-
-)
+    args=[final_loc],
+    )
+    return server_params
+    
 
 
 def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict]:
@@ -493,6 +499,7 @@ class Agentic:
         start_time = time.perf_counter()
         self.recipe_instance = None
         self.recipe_metrics = []
+        self.tool = None
         recipe_predictions = []
         recipe_results = {}
         try:
@@ -500,6 +507,12 @@ class Agentic:
             self.recipe_instance = Recipe.load(recipe_name)
             self.recipe_metrics = [Metric.load(metric) for metric in self.recipe_instance.metrics]
             logger.debug(f"Loaded recipe '{recipe_name}' and {len(self.recipe_metrics)} metrics.")
+
+            # Load tool location
+            # Currently we only accept one tools file
+            # we should allow  and concatenate multiple tools file
+            self.tool = self.recipe_instance.tools
+            logger.debug(f"Added tools location {self.tool}.")
 
         # ------------------------------------------------------------------------------
         # Part 2: Build and execute generator pipeline to get prompts and perform predictions
@@ -642,7 +655,7 @@ class Agentic:
                         )
                         queue.task_done()
                         break
-                    async with stdio_client(server_params) as (read,write):
+                    async with stdio_client(get_tools(self.tool)) as (read,write):
                         async with ClientSession(read,write) as session:
                             await session.initialize()
                             tools = await load_mcp_tools(session)
