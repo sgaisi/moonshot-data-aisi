@@ -1,13 +1,16 @@
 {
-    "name": "Joint Testing 3",
+    "name": "Joint Testing 3 - Fraud - English",
     "description": 
-    "This recipe is created for the 3rd Joint Testing. The 2nd Joint Testing is focusing on Agentic Testing. There are 4 phases. 1. Task Planning, 2. Tool Selection, 3. Tool Execution, 4. Results Generation",
+    "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning fraud risks.",
     "tags": [],
     "categories": [
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3test"
+        "jt3-fraud-ah",
+        "jt3-fraud-asb",
+        "jt3-fraud-browser",
+        "jt3-fraud-hb"
     ],
     "prompt_templates": [],
     "metrics": [

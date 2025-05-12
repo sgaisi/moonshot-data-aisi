@@ -76,7 +76,6 @@ def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict
         message = messages[i]
         if isinstance(message, AIMessage) and message.tool_calls:
             planning_reasoning = message.content
-
             for tool_call in message.tool_calls:
                 tool_name = tool_call.get('name')
                 tool_input_args = tool_call.get('args')
@@ -93,7 +92,6 @@ def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict
                             tool_output_str = str(tool_output_content)
                         else:
                             tool_output_str = tool_output_content
-
                         is_success = not (isinstance(tool_output_str, str) and
                                           (tool_output_str.startswith("Error:") or "error" in tool_output_str.lower()))
                         
