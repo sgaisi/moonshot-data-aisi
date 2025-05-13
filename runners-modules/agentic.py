@@ -874,6 +874,7 @@ class Agentic:
                             }
                             yield current_index, converted_data
                             yielded_count += 1
+                            current_index +=1
                         else:
                             logger.warning(f"Unexpected data type at index {current_index} in dataset {ds_id}: {type(prompts_data)}. Skipping.")
 

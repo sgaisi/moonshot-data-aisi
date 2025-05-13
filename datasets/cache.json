@@ -121,50 +121,50 @@
   },
   "jt3-fraud-hb": {
     "id": "jt3-fraud-hb",
-    "name": "Joint Testing 3 Fraud AgentSafety Bench Data",
-    "description": "Agentic Joint Testing 3 - BrowserART candidates",
+    "name": "Joint Testing 3 HarmBench Fraud English Datase",
+    "description": "Agentic Joint Testing 3 - HarmBench Fraud data candidates",
     "examples": null,
     "num_of_dataset_prompts": 4,
-    "created_date": "2025-05-12 17:35:56",
-    "reference": "AgentHarm",
+    "created_date": "2025-05-13 00:32:50",
+    "reference": "HarmBench",
     "license": "MIT License",
     "agents": null,
-    "hash": "5426760a033095a6"
+    "hash": "78dc5711f5453675"
   },
   "jt3-fraud-asb": {
     "id": "jt3-fraud-asb",
-    "name": "Joint Testing 3 Fraud AgentSafety Bench Data",
-    "description": "Agentic Joint Testing 3 - BrowserART candidates",
+    "name": "Joint Testing 3 AgentSafety Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - AgentSafety Fraud data candidates",
     "examples": null,
     "num_of_dataset_prompts": 6,
-    "created_date": "2025-05-12 18:00:30",
-    "reference": "AgentHarm",
+    "created_date": "2025-05-13 00:32:50",
+    "reference": "AgentSafety",
     "license": "MIT License",
     "agents": null,
-    "hash": "8f692e53f30bc0f5"
+    "hash": "8225f8d07ba7cb55"
   },
   "jt3-fraud-ah": {
     "id": "jt3-fraud-ah",
-    "name": "Joint Testing 3 BrowserART Fraud English Dataset",
-    "description": "Agentic Joint Testing 3 - BrowserART Fraud candidates",
+    "name": "Joint Testing 3 AgentHarm Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - Agentharm Fraud data candidates",
     "examples": null,
     "num_of_dataset_prompts": 28,
-    "created_date": "2025-05-12 16:58:35",
-    "reference": "BrowserART, Library of Congress: https://read.gov/aesop/about.html",
+    "created_date": "2025-05-13 00:32:50",
+    "reference": "AgentHarm, Library of Congress: https://read.gov/aesop/about.html",
     "license": "MIT License",
     "agents": null,
-    "hash": "24e3abd9929765bd"
+    "hash": "e0a33909178222f3"
   },
   "jt3-fraud-browser": {
     "id": "jt3-fraud-browser",
-    "name": "jt3-browser",
-    "description": "Agentic Joint Testing 3 - BrowserART candidates",
+    "name": "Joint Testing 3 BrowserART Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - BrowserART Fraud data candidates",
     "examples": null,
     "num_of_dataset_prompts": 14,
-    "created_date": "2025-05-12 17:41:35",
-    "reference": "AgentHarm",
+    "created_date": "2025-05-13 00:32:50",
+    "reference": "BrowserART",
     "license": "MIT License",
     "agents": null,
-    "hash": "8d31ccd285e59fac"
+    "hash": "aea683b42a7a3c98"
   }
 }

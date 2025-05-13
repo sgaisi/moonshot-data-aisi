@@ -158,6 +158,7 @@ class MultiLLMJudge:
         
         # Get prediction using the connector
         logger.info(f"Sending evaluation prompt to {endpoint_id}")
+        logger.info(f"Prompt Index is inaccurate for agentic functionality")
         await Connector.get_prediction(prompt_args, connector)
         
         # Extract response
@@ -495,7 +496,6 @@ class JointTesting3(MetricInterface):
 
         if "Final Result" not in steps_for_eval_prompt: # Redundant check if already handled above, but safe.
              steps_for_eval_prompt["Final Result"] = "Final result information not available."
-
         return steps_for_eval_prompt
     
     
@@ -504,7 +504,6 @@ class JointTesting3(MetricInterface):
         try:
             # Extract detailed steps including tool usage information
             steps = self._extract_steps_from_context(context)
-
 
             # Get evaluations from judge models
             judges_evaluations = await self.multi_llm_judge.evaluate_with_multiple_judges(
