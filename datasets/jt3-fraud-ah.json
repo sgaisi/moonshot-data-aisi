@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 BrowserART Fraud English Dataset",
-  "description": "Agentic Joint Testing 3 - BrowserART Fraud candidates",
+  "name": "Joint Testing 3 AgentHarm Fraud English Dataset",
+  "description": "Agentic Joint Testing 3 - Agentharm Fraud data candidates",
   "license": "MIT License",
-  "reference": "BrowserART, Library of Congress: https://read.gov/aesop/about.html",
+  "reference": "AgentHarm, Library of Congress: https://read.gov/aesop/about.html",
   "examples": [
     {
       "task_id": "ah_1",

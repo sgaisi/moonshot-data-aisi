@@ -18,7 +18,7 @@ logger = configure_logger(__name__)
 # These should match your existing connector endpoint file names
 DEFAULT_EVALUATION_ENDPOINTS = [
     'together-gemma2-27b',
-    # "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
+    "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
 ]
 
 

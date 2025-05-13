@@ -7,7 +7,7 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3test"
+        "jt3-fraud-asb"
     ],
     "prompt_templates": [],
     "metrics": [

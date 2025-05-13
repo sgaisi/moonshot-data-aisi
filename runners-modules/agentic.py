@@ -241,8 +241,8 @@ class Agentic:
         FROM runner_cache_table
         WHERE connection_id=? AND recipe_id=? AND dataset_id=? AND prompt_template_id=? AND prompt=?
     """
-    BATCH_SIZE = 5
-    QUEUE_SIZE = 5
+    BATCH_SIZE = 10
+    QUEUE_SIZE = 10
 
     def __init__(self):
         self._workflow_results_cache = {}
@@ -653,16 +653,12 @@ class Agentic:
                         )
                         queue.task_done()
                         break
-                    async with stdio_client(get_tools(self.tool)) as (read,write):
-                        async with ClientSession(read,write) as session:
-                            await session.initialize()
-                            tools = await load_mcp_tools(session)
                             # Dispatch the batch to all connectors
-                            batch_tasks = [
-                                self._generate_predictions(batch, connector, cancel_event,tools)
-                                for connector in self.recipe_connectors
-                            ]
-                            connector_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                    batch_tasks = [
+                        self._generate_predictions(batch, connector, cancel_event)
+                        for connector in self.recipe_connectors
+                        ]
+                    connector_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
                     # Process results from each connector for the batch
                     for result_set in connector_results:
@@ -945,9 +941,32 @@ class Agentic:
         prompt_batch: list[PromptArguments],
         connector: Connector,
         cancel_event: asyncio.Event,
-        tools
     ) -> list[PromptArguments | None]:
-        logger.info("Length of tools "+str(len(tools)))
+        # Create a coroutine for each prompt in the batch                
+        tasks = [
+            self._process_single_prompt(prompt_info, connector, cancel_event)
+                for prompt_info in prompt_batch
+            ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        processed_results = []
+        for i, result in enumerate(results):
+            original_prompt_index = prompt_batch[i].connector_prompt.prompt_index
+            if isinstance(result, Exception):
+                logger.error(f"Error processing prompt index {original_prompt_index} with connector {connector.id}: {result}", exc_info=result)
+                self.run_progress.notify_error(f"Prediction failed (prompt {original_prompt_index}, conn {connector.id}): {result}")
+                processed_results.append(None) # Append None for failures
+            elif result is None: # Handle explicit None returns (e.g., cancellation)
+                logger.warning(f"Processing returned None for prompt index {original_prompt_index} (likely cancelled).")
+                processed_results.append(None)
+            elif isinstance(result, PromptArguments):
+                processed_results.append(result)
+            else:
+                logger.error(f"Unexpected result type {type(result)} for prompt index {original_prompt_index}. Appending None.")
+                processed_results.append(None) # Handle unexpected types
+
+        return processed_results # Return list potentially containing None
+
         """
         Asynchronously generates predictions for a batch of prompts using the specified connector.
         This method takes a batch of PromptArguments, which contain information about the prompts to be processed,
@@ -962,39 +981,14 @@ class Agentic:
         Returns:
             list: A list of generated predictions or exceptions if any occurred during prediction generation.
         """
-        # Create a coroutine for each prompt in the batch
-        tasks = [
-            self._process_single_prompt(prompt_info, connector, cancel_event,tools)
-            for prompt_info in prompt_batch
-        ]
 
         # Run all the coroutines concurrently and gather results
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        processed_results = []
-        for i, result in enumerate(results):
-            original_prompt_index = prompt_batch[i].connector_prompt.prompt_index
-            if isinstance(result, Exception):
-                logger.error(f"Error processing prompt index {original_prompt_index} with connector {connector.id}: {result}", exc_info=result)
-                self.run_progress.notify_error(f"Prediction failed (prompt {original_prompt_index}, conn {connector.id}): {result}")
-                processed_results.append(None) # Append None for failures
-            elif result is None: # Handle explicit None returns (e.g., cancellation)
-                 logger.warning(f"Processing returned None for prompt index {original_prompt_index} (likely cancelled).")
-                 processed_results.append(None)
-            elif isinstance(result, PromptArguments):
-                processed_results.append(result)
-            else:
-                 logger.error(f"Unexpected result type {type(result)} for prompt index {original_prompt_index}. Appending None.")
-                 processed_results.append(None) # Handle unexpected types
-
-        return processed_results # Return list potentially containing None
 
     async def _process_single_prompt(
         self,
         prompt_info: PromptArguments,
         connector: Connector,
         cancel_event: asyncio.Event,
-        tools
     ) -> PromptArguments | None:
         """
         Processes a single prompt to generate a prediction or retrieve it from cache.
@@ -1012,86 +1006,92 @@ class Agentic:
             PromptArguments | None: The updated PromptArguments object with the prediction result, or None if the
             operation was cancelled or an exception occurred during prediction generation or caching.
         """
-        if cancel_event.is_set():
-            logger.warning(f"[Agentic] Cancellation requested for prompt index {prompt_info.connector_prompt.prompt_index}.")
-            return None # Return None for cancelled operations
-        # Create a new prompt info object for modification and add connector ID
-        new_prompt_info = copy.deepcopy(prompt_info)
-        # Assign connector ID if not present or mismatched
-        if not new_prompt_info.conn_id: new_prompt_info.conn_id = connector.id
-        elif new_prompt_info.conn_id != connector.id: new_prompt_info.conn_id = connector.id
-        logger.info(f"Processing prompt index {new_prompt_info.connector_prompt.prompt_index}.")
-        try:
-            query = new_prompt_info.connector_prompt.prompt
+        async with stdio_client(get_tools(self.tool)) as (read,write):
+            async with ClientSession(read,write) as session:
+                await session.initialize()
+                tools = await load_mcp_tools(session)
+                logger.info("Length of tools "+str(len(tools)))        
+     
+                if cancel_event.is_set():
+                    logger.warning(f"[Agentic] Cancellation requested for prompt index {prompt_info.connector_prompt.prompt_index}.")
+                    return None # Return None for cancelled operations
+                # Create a new prompt info object for modification and add connector ID
+                new_prompt_info = copy.deepcopy(prompt_info)
+                # Assign connector ID if not present or mismatched
+                if not new_prompt_info.conn_id: new_prompt_info.conn_id = connector.id
+                elif new_prompt_info.conn_id != connector.id: new_prompt_info.conn_id = connector.id
+                logger.info(f"Processing prompt index {new_prompt_info.connector_prompt.prompt_index}.")
+                try:
+                    query = new_prompt_info.connector_prompt.prompt
 
-            self.all_tools = tools
-            self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
+                    self.all_tools = tools
+                    self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
 
-            # --- Tool Selection Logic ---
-            specified_tool_names = new_prompt_info.dataset_tools # Get List[str]
-            tools_for_this_prompt: Optional[List[BaseTool]] = None# Default to None (-> use all tools)
+                    # --- Tool Selection Logic ---
+                    specified_tool_names = new_prompt_info.dataset_tools # Get List[str]
+                    tools_for_this_prompt: Optional[List[BaseTool]] = None# Default to None (-> use all tools)
 
-            if specified_tool_names: # Only filter if names were provided
-                logger.debug(f"Dataset specified tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {specified_tool_names}")
-                current_matched_tools = [
-                    self.all_tools_map[name]
-                    for name in specified_tool_names
-                    if name in self.all_tools_map
-                ]
-                if len(current_matched_tools) != len(specified_tool_names):
-                    found_names = {t.name for t in current_matched_tools}
-                    missing_names = set(specified_tool_names) - found_names
-                    logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: Could not find all specified tools. Missing: {missing_names}.")
-                if current_matched_tools:
-                    tools_for_this_prompt = current_matched_tools
-                    logger.info(f"Using SPECIFIC tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {[t.name for t in tools_for_this_prompt]}")
-                else:
-                    logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None specified tools found. Using DEFAULT tools.")
-            else:
-                logger.info(f"Using DEFAULT (all) tools for prompt {new_prompt_info.connector_prompt.prompt_index}.")
+                    if specified_tool_names: # Only filter if names were provided
+                        logger.debug(f"Dataset specified tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {specified_tool_names}")
+                        current_matched_tools = [
+                            self.all_tools_map[name]
+                            for name in specified_tool_names
+                            if name in self.all_tools_map
+                        ]
+                        if len(current_matched_tools) != len(specified_tool_names):
+                            found_names = {t.name for t in current_matched_tools}
+                            missing_names = set(specified_tool_names) - found_names
+                            logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: Could not find all specified tools. Missing: {missing_names}.")
+                        if current_matched_tools:
+                            tools_for_this_prompt = current_matched_tools
+                            logger.info(f"Using SPECIFIC tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {[t.name for t in tools_for_this_prompt]}")
+                        else:
+                            logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None specified tools found. Using DEFAULT tools.")
+                    else:
+                        logger.info(f"Using DEFAULT (all) tools for prompt {new_prompt_info.connector_prompt.prompt_index}.")
 
-            # --- Get Agent Workflow ---
-            # Pass the filtered list *only if* specific tools were identified.
-            agent_workflow = await self._get_or_create_agent_workflow(
-                connector,
-                tools_for_this_prompt
-            )
+                    # --- Get Agent Workflow ---
+                    # Pass the filtered list *only if* specific tools were identified.
+                    agent_workflow = await self._get_or_create_agent_workflow(
+                        connector,
+                        tools_for_this_prompt
+                    )
 
-            # --- Execute Workflow ---
-            if agent_workflow:
-                logger.debug(f"Invoking agent workflow for prompt index {new_prompt_info.connector_prompt.prompt_index}")
-                workflow_result = await agent_workflow.process_query(query)
-                
-                final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
-                log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
-                # Ensure dataset_tools are logged even if workflow fails to return log properly
-                if "dataset_tools_requested" not in log_entry:
-                    log_entry["dataset_tools_requested"] = new_prompt_info.dataset_tools
-                execution_time = log_entry.get("execution_time", 0.0)
+                    # --- Execute Workflow ---
+                    if agent_workflow:
+                        logger.debug(f"Invoking agent workflow for prompt index {new_prompt_info.connector_prompt.prompt_index}")
+                        workflow_result = await agent_workflow.process_query(query)
+                        
+                        final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
+                        log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
+                        # Ensure dataset_tools are logged even if workflow fails to return log properly
+                        if "dataset_tools_requested" not in log_entry:
+                            log_entry["dataset_tools_requested"] = new_prompt_info.dataset_tools
+                        execution_time = log_entry.get("execution_time", 0.0)
 
-                # Update the prompt info object with results
-                # Ensure log_entry is serializable if storing directly, or extract key info
-                new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(
-                    response=final_answer,
-                    context=[log_entry] # Store the detailed log in context
-                )
-                new_prompt_info.connector_prompt.duration = float(execution_time) # Ensure duration is float
-                logger.info(f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. Duration: {execution_time:.4f}s")
+                        # Update the prompt info object with results
+                        # Ensure log_entry is serializable if storing directly, or extract key info
+                        new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(
+                            response=final_answer,
+                            context=[log_entry] # Store the detailed log in context
+                        )
+                        new_prompt_info.connector_prompt.duration = float(execution_time) # Ensure duration is float
+                        logger.info(f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. Duration: {execution_time:.4f}s")
 
-            else:
-                error_msg = f"Agent workflow creation/retrieval failed for connector {connector.id}."
-                logger.error(f"[Agentic] {error_msg} for prompt {new_prompt_info.connector_prompt.prompt_index}")
-                new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=error_msg, context=[])
-                new_prompt_info.connector_prompt.duration = 0.0
+                    else:
+                        error_msg = f"Agent workflow creation/retrieval failed for connector {connector.id}."
+                        logger.error(f"[Agentic] {error_msg} for prompt {new_prompt_info.connector_prompt.prompt_index}")
+                        new_prompt_info.connector_prompt.predicted_results = ConnectorResponse(response=error_msg, context=[])
+                        new_prompt_info.connector_prompt.duration = 0.0
 
 
-        except Exception as e:
-            logger.error(f"[Agentic] FATAL error processing prompt index {new_prompt_info.connector_prompt.prompt_index}: {e}", exc_info=True)
-            self.run_progress.notify_error(f"Failed processing prompt {new_prompt_info.connector_prompt.prompt_index}: {e}")
-            
-            new_prompt_info.connector_prompt.duration = 0.0
+                except Exception as e:
+                    logger.error(f"[Agentic] FATAL error processing prompt index {new_prompt_info.connector_prompt.prompt_index}: {e}", exc_info=True)
+                    self.run_progress.notify_error(f"Failed processing prompt {new_prompt_info.connector_prompt.prompt_index}: {e}")
+                    
+                    new_prompt_info.connector_prompt.duration = 0.0
 
-        return new_prompt_info
+                return new_prompt_info
 
 
     async def _get_or_create_agent_workflow(
