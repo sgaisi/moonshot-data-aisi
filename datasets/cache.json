@@ -244,12 +244,12 @@
     "name": "Joint Testing 3 BrowserART Fraud English Dataset",
     "description": "Agentic Joint Testing 3 - BrowserART Fraud data candidates",
     "examples": null,
-    "num_of_dataset_prompts": 14,
-    "created_date": "2025-05-15 07:20:44",
+    "num_of_dataset_prompts": 18,
+    "created_date": "2025-05-15 08:05:02",
     "reference": "BrowserART",
     "license": "MIT License",
     "agents": null,
-    "hash": "aea683b42a7a3c98"
+    "hash": "1cee9c1a5f132a33"
   },
   "jt3-fraud-hb-en": {
     "id": "jt3-fraud-hb-en",
@@ -262,5 +262,17 @@
     "license": "MIT License",
     "agents": null,
     "hash": "78dc5711f5453675"
+  },
+  "jt3-test-en": {
+    "id": "jt3-test-en",
+    "name": "Joint Testing 3 HarmBench Fraud English Datase",
+    "description": "Agentic Joint Testing 3 - HarmBench Fraud data candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 5,
+    "created_date": "2025-05-15 07:52:57",
+    "reference": "HarmBench",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "d45f9d32545b5767"
   }
 }

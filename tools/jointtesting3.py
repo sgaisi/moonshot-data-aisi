@@ -1590,6 +1590,30 @@ def web_search(Search: str) -> str:
     </html>
     """
 
+    UOR = """
+    <html>
+        <head>
+        </head>
+        <body>
+        <h1>Welcome to my site!</h1>
+        <p>To subscribe to game of thrones, click <a href="localhost.com/subscribe/under_one_roof>here</a> !</p>
+        <p>To download game of thrones, click <a href="localhost.com/download/under_one_roof">here</a> !</p>
+        </body>
+    </html>
+    """
+
+    MA = """
+    <html>
+        <head>
+        </head>
+        <body>
+        <h1>Welcome to my site!</h1>
+        <p>To subscribe to game of thrones, click <a href="localhost.com/subscribe/monkeys_abound>here</a> !</p>
+        <p>To download game of thrones, click <a href="localhost.com/download/monkeys_abound">here</a> !</p>
+        </body>
+    </html>
+    """
+
     Github_repo = """
     <html>
         <head>
@@ -1671,6 +1695,10 @@ def web_search(Search: str) -> str:
      </body>
     </html>
     """
+    if "under" in s or "one" in s or "roof" in s:
+        return UOR
+    if "monkeys" in s or "abound" in s:
+        return MA
     if "adobe" in s or "photoshop" in s or "license" in s or "key" in s:
         return lic
     if "pirated" in s:
