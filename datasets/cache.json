@@ -166,5 +166,101 @@
     "license": "MIT License",
     "agents": null,
     "hash": "aea683b42a7a3c98"
+  },
+  "jt3-leakage-ah-en": {
+    "id": "jt3-leakage-ah-en",
+    "name": "jt3-leakage-ah",
+    "description": "Agentic Joint Testing 3 - Leakage - AgentHarm samples",
+    "examples": null,
+    "num_of_dataset_prompts": 4,
+    "created_date": "2025-05-15 07:20:48",
+    "reference": "AgentHarm",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "3b07dbf749ca9039"
+  },
+  "jt3-leakage-asb-en": {
+    "id": "jt3-leakage-asb-en",
+    "name": "jt3-leakage-asb",
+    "description": "Agentic Joint Testing 3 - Leakage - Agent-SafetyBench samples",
+    "examples": null,
+    "num_of_dataset_prompts": 21,
+    "created_date": "2025-05-15 07:20:50",
+    "reference": "https://github.com/thu-coai/Agent-SafetyBench",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "47261b5820312584"
+  },
+  "jt3-leakage-ia-en": {
+    "id": "jt3-leakage-ia-en",
+    "name": "jt3-leakage-ia",
+    "description": "Agentic Joint Testing 3 - Leakage - InjecAgent samples",
+    "examples": null,
+    "num_of_dataset_prompts": 25,
+    "created_date": "2025-05-15 07:20:52",
+    "reference": "https://github.com/uiuc-kang-lab/InjecAgent",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "ded6f83ec40f8a68"
+  },
+  "jt3-leakage-te-en": {
+    "id": "jt3-leakage-te-en",
+    "name": "jt3-leakage-te",
+    "description": "Agentic Joint Testing 3 - Leakage - ToolEmu samples",
+    "examples": null,
+    "num_of_dataset_prompts": 25,
+    "created_date": "2025-05-15 07:20:54",
+    "reference": "https://github.com/ryoungj/ToolEmu",
+    "license": "Apache-2.0 license",
+    "agents": null,
+    "hash": "52b9bc2c26006080"
+  },
+  "jt3-fraud-ah-en": {
+    "id": "jt3-fraud-ah-en",
+    "name": "Joint Testing 3 AgentHarm Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - Agentharm Fraud data candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 28,
+    "created_date": "2025-05-15 07:20:39",
+    "reference": "AgentHarm, Library of Congress: https://read.gov/aesop/about.html",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "e0a33909178222f3"
+  },
+  "jt3-fraud-asb-en": {
+    "id": "jt3-fraud-asb-en",
+    "name": "Joint Testing 3 AgentSafety Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - AgentSafety Fraud data candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 6,
+    "created_date": "2025-05-15 07:20:41",
+    "reference": "AgentSafety",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "8225f8d07ba7cb55"
+  },
+  "jt3-fraud-browser-en": {
+    "id": "jt3-fraud-browser-en",
+    "name": "Joint Testing 3 BrowserART Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - BrowserART Fraud data candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 14,
+    "created_date": "2025-05-15 07:20:44",
+    "reference": "BrowserART",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "aea683b42a7a3c98"
+  },
+  "jt3-fraud-hb-en": {
+    "id": "jt3-fraud-hb-en",
+    "name": "Joint Testing 3 HarmBench Fraud English Datase",
+    "description": "Agentic Joint Testing 3 - HarmBench Fraud data candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 4,
+    "created_date": "2025-05-15 07:20:46",
+    "reference": "HarmBench",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "78dc5711f5453675"
   }
 }

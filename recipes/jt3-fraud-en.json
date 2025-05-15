@@ -7,10 +7,10 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-fraud-ah",
-        "jt3-fraud-asb",
-        "jt3-fraud-browser",
-        "jt3-fraud-hb"
+        "jt3-fraud-ah-en",
+        "jt3-fraud-asb-en",
+        "jt3-fraud-browser-en",
+        "jt3-fraud-hb-en"
     ],
     "prompt_templates": [],
     "metrics": [
