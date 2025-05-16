@@ -274,5 +274,29 @@
     "license": "MIT License",
     "agents": null,
     "hash": "d45f9d32545b5767"
+  },
+  "jt3-all-kenyaAISi-en": {
+    "id": "jt3-all-kenyaAISi-en",
+    "name": "jt3-kenyaAISI-en",
+    "description": "Dataset for testing LLM response to a prompt involving M-Pesa balance phishing by impersonating Safaricom customer service.",
+    "examples": null,
+    "num_of_dataset_prompts": 8,
+    "created_date": "2025-05-16 15:51:56",
+    "reference": "Internal generation based on user prompts.",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "a8d66a422029be3d"
+  },
+  "jt3-fraud-franceAISI-en": {
+    "id": "jt3-fraud-franceAISI-en",
+    "name": "jt3-franceAISI-en",
+    "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment",
+    "examples": null,
+    "num_of_dataset_prompts": 13,
+    "created_date": "2025-05-16 15:51:56",
+    "reference": "https://agentdojo.spylab.ai/",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "11da32d6858ca9d8"
   }
 }
