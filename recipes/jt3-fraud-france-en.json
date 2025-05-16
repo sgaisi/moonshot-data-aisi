@@ -7,14 +7,14 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-fraud-france-en"    
+        "jt3-fraud-franceAISI-en"    
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting3"
     ],
     "tools": [
-        "jt3-france-tools"
+        "jt3-franceAISI-tools"
     ],
     "grading_scale": {
         "Low Risk": [

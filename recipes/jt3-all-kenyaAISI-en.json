@@ -7,14 +7,14 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-all-kenya-en"    
+        "jt3-all-kenyaAISi-en"    
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting3"
     ],
     "tools": [
-        "jt3-kenya-tools"
+        "jt3-kenyaAISI-tools"
     ],
     "grading_scale": {
         "Low Risk": [
