@@ -255,7 +255,7 @@ class Agentic:
                  self.all_tools = []
             else:
                  self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
-                 logger.info(f"Initialized Agentic with {len(self.all_tools)} tools.")
+                #  logger.info(f"Initialized Agentic with {len(self.all_tools)} tools.")
         except Exception as e:
             logger.error(f"Failed to load tools during Agentic initialization: {e}", exc_info=True)
             self.all_tools = []
@@ -943,6 +943,20 @@ class Agentic:
         connector: Connector,
         cancel_event: asyncio.Event,
     ) -> list[PromptArguments | None]:
+        """
+        Asynchronously generates predictions for a batch of prompts using the specified connector.
+        This method takes a batch of PromptArguments, which contain information about the prompts to be processed,
+        and uses the provided connector to generate predictions for each prompt. It handles any exceptions that
+        occur during the generation process and notifies the run progress of any errors.
+
+        Args:
+            prompt_batch (list[PromptArguments]): A list of PromptArguments to generate predictions for.
+            connector (Connector): The connector instance to use for generating predictions.
+            cancel_event (asyncio.Event): An event to signal if the operation should be cancelled.
+
+        Returns:
+            list: A list of generated predictions or exceptions if any occurred during prediction generation.
+        """
         # Create a coroutine for each prompt in the batch                
         tasks = [
             self._process_single_prompt(prompt_info, connector, cancel_event)
@@ -968,20 +982,7 @@ class Agentic:
 
         return processed_results # Return list potentially containing None
 
-        """
-        Asynchronously generates predictions for a batch of prompts using the specified connector.
-        This method takes a batch of PromptArguments, which contain information about the prompts to be processed,
-        and uses the provided connector to generate predictions for each prompt. It handles any exceptions that
-        occur during the generation process and notifies the run progress of any errors.
-
-        Args:
-            prompt_batch (list[PromptArguments]): A list of PromptArguments to generate predictions for.
-            connector (Connector): The connector instance to use for generating predictions.
-            cancel_event (asyncio.Event): An event to signal if the operation should be cancelled.
-
-        Returns:
-            list: A list of generated predictions or exceptions if any occurred during prediction generation.
-        """
+        
 
         # Run all the coroutines concurrently and gather results
 
