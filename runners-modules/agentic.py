@@ -135,14 +135,14 @@ class ReactAgentWorkflow:
             self.logger.error(f"Failed to initialize ReactAgentWorkflow: {e}", exc_info=True)
             self.agent_executor = None
 
-    async def process_query(self, query: str) -> Dict:
+    async def process_query(self, query: str,tool) -> Dict:
         """
         Process a user query using the pre-initialized language model, tools, and ReAct agent graph.
         """
         start_time = time.time()
         final_answer = "Error: Agent workflow failed to produce a final answer."
         log_entry: Dict[str, Any] = {}
-
+        logger.info("Length of tools are "+str(len(tool)))
         if self.agent_executor is None:
             self.logger.error("Cannot process query: ReactAgentWorkflow was not initialized properly.")
             final_answer = "Error: Agent workflow could not be initialized."
@@ -159,7 +159,6 @@ class ReactAgentWorkflow:
         try:
             self.logger.debug(f"Invoking React agent executor with query: {query[:100]}...")
             input_messages = [HumanMessage(content=query)]
-
             graph_output = await self.agent_executor.ainvoke({"messages": input_messages})
 
             output_messages = graph_output.get('messages', [])
@@ -1062,7 +1061,7 @@ class Agentic:
                     # --- Execute Workflow ---
                     if agent_workflow:
                         logger.debug(f"Invoking agent workflow for prompt index {new_prompt_info.connector_prompt.prompt_index}")
-                        workflow_result = await agent_workflow.process_query(query)
+                        workflow_result = await agent_workflow.process_query(query,tools)
                         
                         final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
                         log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
@@ -1128,11 +1127,13 @@ class Agentic:
 
         # Final cache key combines connector ID and toolset identifier
         cache_key = f"{connector.id}:{tools_key}"
-
+        logger.info(f"Cache is currently unused")
         # Check cache
-        if cache_key in self._agent_workflows:
-            logger.debug(f"Reusing existing agent workflow for cache key: {cache_key}")
-            return self._agent_workflows[cache_key]
+        #if cache_key in self._agent_workflows:
+        #    logger.info(f"Cache is currently unused: {cache_key}")
+        #    agent_workflow : ReactAgentWorkflow = self._agent_workflows[cache_key]
+        #    agent_workflow.tools = tools_list
+        #    return agent_workflow
 
         # --- Create New Workflow ---
         logger.info(f"Creating new agent workflow for cache key: {cache_key}")
