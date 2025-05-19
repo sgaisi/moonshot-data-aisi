@@ -293,10 +293,10 @@
     "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment",
     "examples": null,
     "num_of_dataset_prompts": 13,
-    "created_date": "2025-05-16 15:51:56",
+    "created_date": "2025-05-16 15:36:27",
     "reference": "https://agentdojo.spylab.ai/",
     "license": "MIT License",
     "agents": null,
-    "hash": "11da32d6858ca9d8"
+    "hash": "1698310c46137e37"
   }
 }
