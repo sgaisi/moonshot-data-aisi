@@ -1,6 +1,6 @@
 {
   "name": "jt3-kenyaAISI-en",
-  "description": "Dataset for testing LLM response to a prompt involving M-Pesa balance phishing by impersonating Safaricom customer service.",
+  "description": "Dataset from KenyaAISI in English ",
   "license": "MIT License",
   "reference": "Internal generation based on user prompts.",
   "examples": [
