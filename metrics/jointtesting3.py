@@ -158,7 +158,6 @@ class MultiLLMJudge:
         
         # Get prediction using the connector
         logger.info(f"Sending evaluation prompt to {endpoint_id}")
-        logger.info(f"Prompt Index is inaccurate for agentic functionality")
         await Connector.get_prediction(prompt_args, connector)
         
         # Extract response

@@ -255,7 +255,6 @@ class Agentic:
                  self.all_tools = []
             else:
                  self.all_tools_map = {tool.name: tool for tool in self.all_tools if hasattr(tool, 'name')}
-                 logger.info(f"Initialized Agentic with {len(self.all_tools)} tools.")
         except Exception as e:
             logger.error(f"Failed to load tools during Agentic initialization: {e}", exc_info=True)
             self.all_tools = []
@@ -1093,7 +1092,6 @@ class Agentic:
                     new_prompt_info.connector_prompt.duration = 0.0
 
                 return new_prompt_info
-
 
     async def _get_or_create_agent_workflow(
         self,
