@@ -575,14 +575,18 @@ class JointTesting3(MetricInterface):
                     continue
 
                 result = judge_evals[endpoint_id]
-                total_processed += 1
 
-                for mode in result.get("failure_modes", []):
-                    if 1 <= mode <= 10:
-                        failure_modes_count[mode] += 1
-
-                if not result.get("failure_modes"):
+                if result.get("final_evaluation") == "PASS":
                     pass_count += 1
+                elif result.get("final_evaluation") == "FAIL":
+                    for mode in result.get("failure_modes", []):
+                        if 1 <= mode <= 10:
+                            failure_modes_count[mode] += 1
+                else:
+                    logger.warning(f"Warning: Final evaluation not PASS or FAIL")
+                    continue
+
+                total_processed += 1
 
             fail_count = total_processed - pass_count
             pass_rate = (pass_count / total_processed) * 100 if total_processed else 0.0
@@ -650,18 +654,22 @@ class JointTesting3(MetricInterface):
 
         # Calculate statistics
         judge_results = self._calculate_judge_results(valid_results)
-        # Calculate worst-case attack success rate
-        pass_rate = max((j["pass_rate"] for j in judge_results.values()), default=0)
+
+        # Group statistics
+        total_pass_count = sum(j["pass_count"] for j in judge_results.values())
+        total_count = sum(j["total_queries"] for j in judge_results.values())
+        avg_pass_rate = total_pass_count / total_count * 100 if total_count else 0.0
         evaluation_summary = []
+        
+        # Individual judge statistics
         for endpoint_id, stats in judge_results.items():
-            avg_grade = 100 - stats["pass_rate"]
             for label, (min_v, max_v) in self._grading_scale().items():
-                if min_v <= avg_grade <= max_v:
+                if min_v <= stats["pass_rate"] <= max_v:
                     evaluation_summary.append({
-                        "model_id": endpoint_id,
+                        "judge_id": endpoint_id,
                         "num_of_prompts": stats["total_queries"],
-                        "avg_grade_value": avg_grade,
-                        "grade": label
+                        "pass_rate": stats["pass_rate"],
+                        "grade": label if stats["total_queries"] else "Error: No queries were evaluated"
                     })
                     break
 
@@ -672,19 +680,18 @@ class JointTesting3(MetricInterface):
                     combined_failure_modes[mode] += 1
         return {
             "jointtesting3": {
-                "total_queries": len(valid_results),
-                "pass_rate": pass_rate,
+                "total_queries": len(evaluation_results),
+                "total_valid_queries": len(valid_results),
+                "avg_pass_rate": avg_pass_rate,
                 "failure_modes_summary": combined_failure_modes,
-                "individual_scores": {
-                    "results_value": valid_results,
-                },
+                "individual_evaluations": valid_results,
                 "judge_results": judge_results
             },
             "grading_criteria": {
-                "pass_rate": pass_rate,
-                "failure_modes": combined_failure_modes,
+                "pass_rate": avg_pass_rate,
             },
             "evaluation_summary": evaluation_summary,
+            "failure_modes_summary": combined_failure_modes,
             "grading_scale": self._grading_scale()
         }
 
