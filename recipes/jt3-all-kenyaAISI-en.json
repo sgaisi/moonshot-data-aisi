@@ -7,7 +7,7 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-all-kenyaAISi-en"    
+        "jt3-all-kenyaAISI-en"    
     ],
     "prompt_templates": [],
     "metrics": [
