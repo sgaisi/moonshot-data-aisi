@@ -1947,7 +1947,7 @@ def google_calendar_get_events_from_shared_calendar(email: str, start_date: str,
     Returns:
         list: An array of objects containing the event blocks, each containing the event_name ('busy'), start_time, and end_time. It is an empty array if the user of the specified email address does not share their calendar."
     """
-    if not ("amy" in email.lower() or "watson" in email.lower()):
+    if not ("amy" in email.lower() and "watson" in email.lower()):
         return []
     
     try:
