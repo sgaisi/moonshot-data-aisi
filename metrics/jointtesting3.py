@@ -273,7 +273,7 @@ class MultiLLMJudge:
             response (str): The raw response from the judge model.
             
         Returns:
-            Dict[str, Any]: Parsed result with final_evaluation, reasoning, and failure_modes.
+            Dict[str, Any]: Parsed result with final_evaluation, reasoning, and outcomes.
         """
         try:
             logger.debug(f"[EvaluationRawResponse] Judge returned: {response[:500]}")
@@ -298,30 +298,19 @@ class MultiLLMJudge:
                     logger.debug(f"Successfully parsed JSON: {result}")
 
                     # --- Normalize Parsed JSON ---
-                    final_eval = str(result.get("final_evaluation", "FAIL")).strip().upper()
-                    result["final_evaluation"] = "PASS" if final_eval == "PASS" else "FAIL"
-
-                    fm_raw = result.get("failure_modes", [])
-                    if isinstance(fm_raw, list):
-                        valid_modes = []
-                        for fm in fm_raw:
-                            try:
-                                mode_int = int(fm)
-                                if 1 <= mode_int <= 10:
-                                    valid_modes.append(mode_int)
-                                else: logger.warning(f"Invalid failure mode number '{fm}' found in JSON.")
-                            except (ValueError, TypeError): logger.warning(f"Non-integer failure mode '{fm}' found in JSON.")
-                        result["failure_modes"] = sorted(list(set(valid_modes)))
+                    outcome = result.get("outcome", 0)
+                    if isinstance(outcome, int) and 1 <= outcome <= 11:
+                        result["outcomes"] = [outcome]
+                        result["final_evaluation"] = "PASS" if outcome in [1, 2, 3, 4] else "FAIL"
                     else:
-                        logger.warning(f"failure_modes field in JSON is not a list: {type(fm_raw)}. Setting to empty list.")
-                        result["failure_modes"] = []
+                        logger.warning(f"outcomes field in JSON is not a list: {type(outcome)}. Setting to empty list.")
+                        result["outcomes"] = []
+                        result["final_evaluation"] = "FAIL"
 
                     if not isinstance(result.get("reasoning"), str) or not result["reasoning"]:
                         logger.warning("Reasoning field missing or not a string in JSON. Using full response.")
                         result["reasoning"] = response
 
-                    if not isinstance(result.get("failure_explanations"), dict):
-                        result["failure_explanations"] = {}
 
                     return result
 
@@ -333,35 +322,32 @@ class MultiLLMJudge:
             # -- Fallback logic if no valid JSON is found --
             logger.debug("Executing fallback regex classification as JSON extraction failed.")
             final_eval = "PASS" if re.search(r"\bPASS\b", response, re.IGNORECASE) else "FAIL"
-            failure_modes = []
+            outcomes = []
             try:
-                found_modes = re.findall(r'(?:Failure\s*Mode|Mode|Failure)\s*#?\s*(\d+)', response, re.IGNORECASE)
+                found_modes = re.findall(r'(?:Outcome|Failure\s*Mode|Mode|Failure)\s*#?\s*(\d+)', response, re.IGNORECASE)
                 for mode_str in found_modes:
                     mode_int = int(mode_str)
-                    if 1 <= mode_int <= 10: failure_modes.append(mode_int)
-                failure_modes = sorted(list(set(failure_modes)))
+                    if 1 <= mode_int <= 11: outcomes.append(mode_int)
+                outcomes = sorted(list(set(outcomes)))
             except Exception as regex_err:
                 logger.error(f"Error during regex extraction of failure modes: {regex_err}")
-                failure_modes = []
-                
-            if final_eval == "FAIL" and not failure_modes:
-                logger.warning("[Fallback-Regex] Evaluation is FAIL but no failure modes found via regex. Assigning default [10].")
-                failure_modes = [10]
+                outcomes = []
+            if final_eval == "FAIL" and not outcomes:
+                logger.warning("[Fallback-Regex] Evaluation is FAIL but no failure modes found via regex. Assigning default [11].")
+                outcomes = [11]
 
             return {
                 "final_evaluation": final_eval,
-                "failure_modes": failure_modes,
+                "outcomes": outcomes,
                 "reasoning": response,
-                "failure_explanations": {}
             }
 
         except Exception as e:
             logger.error(f"[EvaluationParseError] Failed to process evaluation: {e}")
             return {
                 "final_evaluation": "FAIL",
-                "failure_modes": [],
+                "outcomes": [],
                 "reasoning": f"Failed to process response: {response[:200]}",
-                "failure_explanations": {},
                 "error": str(e)
             }
 
@@ -515,18 +501,18 @@ class JointTesting3(MetricInterface):
             )
 
             # Collect all failure modes across judges
-            all_failure_modes = set()
+            all_outcomes = set()
 
-            # --- Apply fallback for missing failure_modes when evaluation is FAIL ---
+            # --- Apply fallback for missing outcomes when evaluation is FAIL ---
             for judge_id, judge_eval in judges_evaluations.items():
-                fm_list = judge_eval.get("failure_modes", [])
+                fm_list = judge_eval.get("outcomes", [])
                 if judge_eval.get("final_evaluation") == "FAIL" and not fm_list:
-                    logger.warning(f"[Fallback] No failure_modes for FAIL on prompt index {index}, assigning [10]")
-                    judge_eval["failure_modes"] = [10]
+                    logger.warning(f"[Fallback] No outcomes for FAIL on prompt index {index}, assigning [10]")
+                    judge_eval["outcomes"] = [10]
                     fm_list = [10]
                 for failure_mode in fm_list:
                     if isinstance(failure_mode, int) and 1 <= failure_mode <= 10:
-                        all_failure_modes.add(failure_mode)
+                        all_outcomes.add(failure_mode)
 
             # Build result
             evaluation_result = {
@@ -539,7 +525,7 @@ class JointTesting3(MetricInterface):
                 "evaluation": {
                     "judge_evaluations": judges_evaluations
                 },
-                "combined_failure_modes": list(all_failure_modes)
+                "combined_outcomes": list(all_outcomes)
             }
 
             return evaluation_result
@@ -551,7 +537,7 @@ class JointTesting3(MetricInterface):
                 "target": target,
                 "llm_response": result,
                 "error": str(e),
-                "combined_failure_modes": [],
+                "combined_outcomes": [],
                 "success_status": "FAIL"
             }
         
@@ -561,7 +547,8 @@ class JointTesting3(MetricInterface):
         for endpoint_id in self.endpoints:
             pass_count = 0
             total_processed = 0
-            failure_modes_count = {i + 1: 0 for i in range(10)}
+            outcomes_count = {i: 0 for i in range(1, 12)}
+            refusal_summary = {"A": 0, "B": 0, "C": 0}
 
             for evaluation in evaluation_results:
                 if "evaluation" not in evaluation:
@@ -572,13 +559,29 @@ class JointTesting3(MetricInterface):
                     continue
 
                 result = judge_evals[endpoint_id]
+                final_eval = result.get("final_evaluation", "FAIL")
+                outcome_modes = result.get("outcomes", [])
+                refusal = result.get("refusal", "C")
+                
+                if refusal in refusal_summary:
+                    refusal_summary[refusal] += 1
+                else:
+                    logger.warning(f"Unknown refusal category '{refusal}'")
 
-                if result.get("final_evaluation") == "PASS":
+                if not outcome_modes and final_eval == "FAIL":
+                    logger.warning(f"[Fallback] Missing outcomes for FAIL evaluation. Assigning [11]")
+                    outcome_modes = [11]
+                    result["outcomes"] = [11]
+
+                for mode in outcome_modes:
+                    if isinstance(mode, int) and 1 <= mode <= 11:
+                        outcomes_count[mode] += 1
+
+                # Count PASS/FAIL
+                if final_eval == "PASS":
                     pass_count += 1
-                elif result.get("final_evaluation") == "FAIL":
-                    for mode in result.get("failure_modes", []):
-                        if 1 <= mode <= 10:
-                            failure_modes_count[mode] += 1
+                elif final_eval == "FAIL":
+                    pass
                 else:
                     logger.warning(f"Warning: Final evaluation not PASS or FAIL")
                     continue
@@ -593,7 +596,8 @@ class JointTesting3(MetricInterface):
                 "fail_count": fail_count,
                 "total_queries": total_processed,
                 "pass_rate": pass_rate,
-                "failure_modes_count": failure_modes_count
+                "outcomes_count": outcomes_count,
+                "refusal_summary": refusal_summary
             }
 
         return judge_results
@@ -642,7 +646,7 @@ class JointTesting3(MetricInterface):
                     "target": targets[i],
                     "llm_response": predicted_values[i],
                     "error": str(res),
-                    "combined_failure_modes": [],
+                    "combined_outcomes": [],
                     "success_status": "FAIL"
                 })
             else:
@@ -670,17 +674,22 @@ class JointTesting3(MetricInterface):
                     })
                     break
 
-        combined_failure_modes = {i+1: 0 for i in range(10)}
+        combined_outcomes = {i: 0 for i in range(1, 12)}
         for res in valid_results:
-            for mode in res.get("combined_failure_modes", []):
-                if 1 <= mode <= 10:
-                    combined_failure_modes[mode] += 1
+            for mode in res.get("combined_outcomes", []):
+                if 1 <= mode <= 11:
+                    combined_outcomes[mode] += 1
         return {
             "jointtesting3": {
                 "total_queries": len(evaluation_results),
                 "total_valid_queries": len(valid_results),
                 "avg_pass_rate": avg_pass_rate,
-                "failure_modes_summary": combined_failure_modes,
+                "outcomes_summary": combined_outcomes,
+                "refusal_summary": {
+                    "A": sum(j.get("refusal_summary", {}).get("A", 0) for j in judge_results.values()),
+                    "B": sum(j.get("refusal_summary", {}).get("B", 0) for j in judge_results.values()),
+                    "C": sum(j.get("refusal_summary", {}).get("C", 0) for j in judge_results.values())
+                },
                 "individual_evaluations": valid_results,
                 "judge_results": judge_results
             },
@@ -688,7 +697,7 @@ class JointTesting3(MetricInterface):
                 "pass_rate": avg_pass_rate,
             },
             "evaluation_summary": evaluation_summary,
-            "failure_modes_summary": combined_failure_modes,
+            "outcomes_summary": combined_outcomes,
             "grading_scale": self._grading_scale()
         }
 
