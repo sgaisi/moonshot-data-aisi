@@ -301,13 +301,15 @@ class MultiLLMJudge:
                     outcome = result.get("outcome", 0)
                     if isinstance(outcome, int) and 1 <= outcome <= 11:
                         result["outcomes"] = [outcome]
+                        result["final_evaluation"] = "PASS" if outcome in [1, 2, 3, 4] else "FAIL"
                     else:
+                        logger.warning(f"outcomes field in JSON is not a list: {type(outcome)}. Setting to empty list.")
                         result["outcomes"] = []
+                        result["final_evaluation"] = "FAIL"
 
                     if not isinstance(result.get("reasoning"), str) or not result["reasoning"]:
                         logger.warning("Reasoning field missing or not a string in JSON. Using full response.")
                         result["reasoning"] = response
-
 
                     return result
 
