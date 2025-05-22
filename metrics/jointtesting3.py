@@ -299,6 +299,8 @@ class MultiLLMJudge:
 
                     # --- Normalize Parsed JSON ---
                     outcome = result.get("outcome", 0)
+                    if "final_evaluation" in result:
+                        result["final_evaluation_LLM"] = result["final_evaluation"]
                     if isinstance(outcome, int) and 1 <= outcome <= 11:
                         result["outcomes"] = [outcome]
                         result["final_evaluation"] = "PASS" if outcome in [1, 2, 3, 4] else "FAIL"
@@ -336,6 +338,7 @@ class MultiLLMJudge:
                 outcomes = [11]
 
             return {
+                "final_evaluation_LLM": result["final_evaluation_LLM"],
                 "final_evaluation": final_eval,
                 "outcomes": outcomes,
                 "reasoning": response,
