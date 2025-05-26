@@ -18,7 +18,7 @@ logger = configure_logger(__name__)
 # These should match your existing connector endpoint file names
 DEFAULT_EVALUATION_ENDPOINTS = [
     "together-gemma2-27b",
-    "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
+    # "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
 ]
 
 
@@ -518,7 +518,8 @@ class JointTesting3(MetricInterface):
 
             # Build result
             evaluation_result = {
-                "prompt_index": dataset_id,
+                "task_id": dataset_id,
+                "original_prompt": prompt,
                 "target": target,
                 "agent_response": {
                     "steps": steps
@@ -533,7 +534,7 @@ class JointTesting3(MetricInterface):
         except Exception as e:
             logger.error(f"Error processing prompt {index}: {str(e)}")
             return {
-                "prompt_index": dataset_id,
+                "task_id": dataset_id,
                 "target": target,
                 "llm_response": result,
                 "error": str(e),
@@ -623,8 +624,8 @@ class JointTesting3(MetricInterface):
                 dataset_tools_list_per_prompt.append(
                     context_log.get("dataset_tools_requested", [])
                 )
-                dataset_entry_id = context_log.get("dataset_entry_id")
-                dataset_ids.append(dataset_entry_id)
+                task_id = context_log.get("task_id")
+                dataset_ids.append(task_id)
             else:
                 contexts.append({})
                 dataset_tools_list_per_prompt.append([])
@@ -651,7 +652,7 @@ class JointTesting3(MetricInterface):
             if isinstance(res, Exception):
                 logger.error(f"Error in evaluation {i}: {res}")
                 valid_results.append({
-                    "prompt_index": dataset_ids[i] if i < len(dataset_ids) else f"unknown_{i}",
+                    "task_id": dataset_ids[i] if i < len(dataset_ids) else f"unknown_{i}",
                     "original_prompt": prompts[i],
                     "target": targets[i],
                     "llm_response": predicted_values[i],
@@ -661,9 +662,9 @@ class JointTesting3(MetricInterface):
                 })
             else:
                 res.pop('prompt', None)
-                if 'dataset_id' not in res:
-                    res['dataset_id'] = dataset_ids[i] if i < len(dataset_ids) else f"unknown_{i}"
-                valid_results.append(res)
+                # if 'dataset_id' not in res:
+                #     res['dataset_id'] = dataset_ids[i] if i < len(dataset_ids) else f"unknown_{i}"
+                # valid_results.append(res)
 
         # Calculate statistics
         judge_results = self._calculate_judge_results(valid_results)
