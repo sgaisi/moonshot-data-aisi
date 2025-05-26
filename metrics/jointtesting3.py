@@ -624,6 +624,7 @@ class JointTesting3(MetricInterface):
                     context_log.get("dataset_tools_requested", [])
                 )
                 dataset_entry_id = context_log.get("dataset_entry_id")
+                dataset_ids.append(dataset_entry_id)
             else:
                 contexts.append({})
                 dataset_tools_list_per_prompt.append([])
