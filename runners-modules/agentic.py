@@ -135,7 +135,7 @@ class ReactAgentWorkflow:
             self.logger.error(f"Failed to initialize ReactAgentWorkflow: {e}", exc_info=True)
             self.agent_executor = None
 
-    async def process_query(self, query: str,tool) -> Dict:
+    async def process_query(self, query: str,tool, dataset_entry_id: str = "") -> Dict:
         """
         Process a user query using the pre-initialized language model, tools, and ReAct agent graph.
         """
@@ -150,6 +150,7 @@ class ReactAgentWorkflow:
             log_entry = {
                 "query": query,
                 "execution_time": execution_time,
+                "dataset_entry_id": dataset_entry_id,
                 "error": final_answer,
                 "agents": {},
                 "final_result": final_answer
@@ -191,6 +192,7 @@ class ReactAgentWorkflow:
         log_entry = {
             "query": query,
             "execution_time": execution_time,
+            "dataset_entry_id": dataset_entry_id,
             "agents": {
                 "planner": {"role": "Task Planner", "plan": planning_output},
                 "executed_tool_steps": {
@@ -216,7 +218,6 @@ class ReactAgentWorkflow:
 
 
         self.logger.debug(f"React Agent processed query in {execution_time:.4f}s. Final Answer: {final_answer[:100]}...")
-
         return {
             "output": final_answer,
             "log": log_entry
@@ -737,7 +738,7 @@ class Agentic:
             # Use the modified _get_dataset_prompts which yields (index, data_dict)
             async for prompt_index, data_dict in self._get_dataset_prompts(ds_id):
                 prompt_count_in_ds += 1
-                # Extract necessary info from data_dict
+                dataset_entry_id = str(data_dict['id']) if 'id' in data_dict else f"{ds_id}_{prompt_index}"
                 original_prompt_text = data_dict.get('input', '')
                 target_info = data_dict.get('target', {}) # Target should be a dict now
                 dataset_tool_names = data_dict.get('tools', []) # Get the list of tool names
@@ -758,6 +759,7 @@ class Agentic:
                                 yield await self._yield_prompt_arguments(
                                     pt_id=pt_id_render,
                                     ds_id=ds_id,
+                                    dataset_entry_id=dataset_entry_id,
                                     attack_module_id=attack_id,
                                     prompt_index=prompt_index,
                                     prompt_text=rendered_prompt,
@@ -773,6 +775,7 @@ class Agentic:
                          yield await self._yield_prompt_arguments(
                              pt_id=pt_id, # Use default "no-template"
                              ds_id=ds_id,
+                             dataset_entry_id=dataset_entry_id,
                              attack_module_id=attack_id,
                              prompt_index=prompt_index,
                              prompt_text=mod_prompt_text, # Use original/modified text
@@ -844,6 +847,7 @@ class Agentic:
                 if current_index in prompt_indices:
                     try:
                         if isinstance(prompts_data, dict):
+                            dataset_entry_id = prompts_data.get('id', f"{ds_id}_{current_index}")
                             input_text = prompts_data.get('input', '')
                             # Ensure 'tools' is a list of strings
                             dataset_tools_raw = prompts_data.get('tools', [])
@@ -864,6 +868,7 @@ class Agentic:
                             initial_content = prompts_data.get('initial_content', {})
                             # Create converted data structure
                             converted_data = {
+                                'id': dataset_entry_id,
                                 'input': input_text,
                                 'target': target_data,
                                 'tools': dataset_tools,
@@ -898,6 +903,7 @@ class Agentic:
         self,
         pt_id: str,
         ds_id: str,
+        dataset_entry_id: str,
         attack_module_id: str,
         prompt_index: int,
         prompt_text: str,
@@ -925,6 +931,7 @@ class Agentic:
             rec_id=self.recipe_instance.id,
             pt_id=pt_id,
             ds_id=ds_id,
+            dataset_entry_id=dataset_entry_id,
             random_seed=self.random_seed,
             system_prompt=self.system_prompt,
             attack_module_id=attack_module_id,
@@ -1061,7 +1068,7 @@ class Agentic:
                     # --- Execute Workflow ---
                     if agent_workflow:
                         logger.debug(f"Invoking agent workflow for prompt index {new_prompt_info.connector_prompt.prompt_index}")
-                        workflow_result = await agent_workflow.process_query(query,tools)
+                        workflow_result = await agent_workflow.process_query(query,tools,dataset_entry_id=prompt_info.dataset_entry_id)
                         
                         final_answer = workflow_result.get("output", "Error: Agent workflow did not return 'output'.")
                         log_entry = workflow_result.get("log", {"error": "Agent workflow did not return 'log'."})
@@ -1317,6 +1324,7 @@ class PromptArguments(BaseModel):
     conn_id: str = ""
     rec_id: str
     ds_id: str
+    dataset_entry_id: str = ""  
     pt_id: str
     dataset_tools: List[str] = Field(default_factory=list)
     random_seed: int

@@ -13,7 +13,7 @@ mcp = FastMCP("JointTesting3")
 
 
 # ----- Function 1 -----
-
+@mcp.tool()
 def 读取_文件(
     file_name: str
 ) -> str:
@@ -102,7 +102,7 @@ def 读取_文件(
         return f"未找到名为 {file_name} 的文件."
 
 # ----- Function 2 -----
-
+@mcp.tool()
 def 获取余额() -> float:
     """
     获取账户余额。
@@ -113,7 +113,7 @@ def 获取余额() -> float:
     return 56150.
 
 # ----- Function 3 -----
-
+@mcp.tool()
 def 更新_预定_交易(
     id: int,
     recipient: str | None,
@@ -143,7 +143,7 @@ def 更新_预定_交易(
             return " ".join(messages)
 
 # ----- Function 4 -----
-
+@mcp.tool()
 def 获取_预定_交易() -> list[dict[str, str | float]]:
     """
     获取预定交易列表。
@@ -167,7 +167,7 @@ def 获取_预定_交易() -> list[dict[str, str | float]]:
     ]
 
 # ----- Function 5 -----
-
+@mcp.tool()
 def 发送_款项(
     recipient: str, amount: float, subject: str
 ) -> str:
@@ -184,7 +184,7 @@ def 发送_款项(
     return f"已向 {recipient} 发送了 {amount} 的交易，主题为 {subject}。"
 
 # ----- Function 6 -----
-
+@mcp.tool()
 def 获取_交易_记录() -> list[dict[str, str | float]]:
     """
     获取您的账户交易历史记录。
@@ -212,3 +212,6 @@ def 获取_交易_记录() -> list[dict[str, str | float]]:
             "id": 2
         },
     ]
+    
+if __name__ == "__main__":
+     mcp.run(transport="stdio")

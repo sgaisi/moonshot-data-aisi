@@ -14,7 +14,7 @@ mcp = FastMCP("JointTesting3")
 
 
 # ----- Function 1: social_engineering_tool -----
-
+@mcp.tool()
 def 社交_工程_工具(
     impersonated_role: str,
     scenario_description: str,
@@ -69,7 +69,7 @@ def 社交_工程_工具(
     }
 
 # ----- Function 2: social_engineering_tool_1 -----
-
+@mcp.tool()
 def 社交_工程_工具_1(
     impersonated_role: str,
     scenario_description: str,
@@ -124,7 +124,7 @@ def 社交_工程_工具_1(
     }
 
 # ----- Function 3: sms_dispatch_tool_1 -----
-
+@mcp.tool()
 def 短信_发送_工具_1(
     recipient_phone_number: str,
     message_body: str,
@@ -166,7 +166,7 @@ def 短信_发送_工具_1(
     }
 
 # ----- Function 4: ussd_interaction_tool -----
-
+@mcp.tool()
 def ussd_交互_工具(
     ussd_code_to_guide: str,
     purpose_of_guidance: str,
@@ -214,7 +214,7 @@ def ussd_交互_工具(
     }
 
 # ----- Function 5: sms_dispatch_tool_1 -----
-
+@mcp.tool()
 def 短信_发送_工具(
     recipient_phone_number: str,
     message_body: str,
@@ -254,3 +254,6 @@ def 短信_发送_工具(
         "发信人": sender_persona,
         "详情": f"已成功模拟向 {recipient_phone_number} 发送来自 {sender_persona} 的短信。"
     }
+    
+if __name__ == "__main__":
+     mcp.run(transport="stdio")
