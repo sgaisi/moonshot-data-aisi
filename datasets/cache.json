@@ -298,5 +298,53 @@
     "license": "MIT License",
     "agents": null,
     "hash": "1698310c46137e37"
+  },
+  "jt3-fraud-ch": {
+    "id": "jt3-fraud-ch",
+    "name": "Joint Testing 3 AgentHarm Fraud English Dataset",
+    "description": "Agentic Joint Testing 3 - Agentharm Fraud data candidates",
+    "examples": null,
+    "num_of_dataset_prompts": 56,
+    "created_date": "2025-05-23 08:58:35",
+    "reference": "AgentHarm, Library of Congress: https://read.gov/aesop/about.html",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "5a84bcba15d70dd8"
+  },
+  "jt3-leakage-ch": {
+    "id": "jt3-leakage-ch",
+    "name": "jt3-leakage-ah",
+    "description": "Agentic Joint Testing 3 - Leakage - AgentHarm samples",
+    "examples": null,
+    "num_of_dataset_prompts": 79,
+    "created_date": "2025-05-23 08:58:35",
+    "reference": "AgentHarm",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "5f457636c8d67d00"
+  },
+  "jt3-all-kenyaAISI-ch": {
+    "id": "jt3-all-kenyaAISI-ch",
+    "name": "jt3-kenyaAISI-en",
+    "description": "Dataset from KenyaAISI in English ",
+    "examples": null,
+    "num_of_dataset_prompts": 8,
+    "created_date": "2025-05-23 08:58:35",
+    "reference": "Internal generation based on user prompts.",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "3c98cfbe2f3c7397"
+  },
+  "jt3-fraud-franceAISI-ch": {
+    "id": "jt3-fraud-franceAISI-ch",
+    "name": "jt3-franceAISI-ch",
+    "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment",
+    "examples": null,
+    "num_of_dataset_prompts": 13,
+    "created_date": "2025-05-23 08:58:35",
+    "reference": "https://agentdojo.spylab.ai/",
+    "license": "MIT License",
+    "agents": null,
+    "hash": "9f4ab58a40c8e75e"
   }
 }
