@@ -46,6 +46,10 @@ from pydantic import BaseModel, Field
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain_core.messages.tool import ToolCall
+
+
+import traceback
 
 # Create a logger for this module
 logger = configure_logger(__name__)
@@ -62,6 +66,57 @@ def get_tools(tool_loc : list[str]):
     )
     return server_params
     
+# Define a post_model_hook function
+def post_model_hook(model_output: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    A hook that processes the model's output before it's used by the agent.
+    
+    Args:
+        model_output: The output from the model
+        
+    Returns:
+        Modified model output with:
+        1. "<|python_start|>" and "<|python_end|>" tags removed
+        2. Any content between "[" and "]" containing "type:function" removed
+    """
+    try:
+        # Get the original response
+        messages = model_output.get("messages", [])
+        
+        if messages:
+            for i, message in enumerate(messages):
+                if isinstance(message, AIMessage):
+                    content = message.content
+                    tool_call = ""
+                    modified = False
+                    
+                    start = "<|python_start|>"
+                    end = "<|python_end|>"
+                    
+                    idx1 = content.find(start)
+                    idx2 = content.find(end,idx1+len(start))
+                    
+                    # Remove "<|python_start|>" and "<|python_end|>" tags from content
+                    if idx1 != -1  and idx2 != -1:
+                        
+                        tool_call = content[idx1+len(start):idx2]
+                        modified = True
+                    
+                    # Update the message content if modified
+                    if modified:
+                        t =  json.loads(tool_call)
+                        idd = t[0]["id"]
+                        name = t[0]["function"]["name"]
+                        args = json.loads(t[0]["function"]["arguments"])
+                        
+                        tc = ToolCall(name=name,args=args,id=idd) 
+                        a = AIMessage(content=content,id=message.id,tool_calls=[tc])
+                        messages[i] = a
+    except Exception as e:
+        print(f"Error in post_model_hook: {e}")
+        
+        
+    return model_output
 
 
 def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict]:
@@ -128,7 +183,9 @@ class ReactAgentWorkflow:
             self.agent_executor = create_react_agent(
                 model=self.llm,
                 tools=self.tools,
-                prompt=single_prompt_template
+                prompt=single_prompt_template,
+                post_model_hook=post_model_hook
+                #post_model_hook=post_modelhook
             )
             self.logger.info(f"ReactAgentWorkflow initialized successfully with {len(self.tools)} tools.")
         except Exception as e:
@@ -159,7 +216,7 @@ class ReactAgentWorkflow:
         try:
             self.logger.debug(f"Invoking React agent executor with query: {query[:100]}...")
             input_messages = [HumanMessage(content=query)]
-            graph_output = await self.agent_executor.ainvoke({"messages": input_messages})
+            graph_output = await self.agent_executor.ainvoke({"messages": input_messages},{"recursion_limit": 100})
 
             output_messages = graph_output.get('messages', [])
             
@@ -1050,7 +1107,6 @@ class Agentic:
                             logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None specified tools found. Using DEFAULT tools.")
                     else:
                         logger.info(f"Using DEFAULT (all) tools for prompt {new_prompt_info.connector_prompt.prompt_index}.")
-
                     # --- Get Agent Workflow ---
                     # Pass the filtered list *only if* specific tools were identified.
                     agent_workflow = await self._get_or_create_agent_workflow(
@@ -1272,6 +1328,8 @@ class Agentic:
                     model=model_name,
                     temperature=temperature,
                     together_api_key=api_key,
+                    max_tokens=-1,
+                    max_retries=10
                 )
                 logger.info(f"Initialized Together LLM for {connector.id}")
                 
