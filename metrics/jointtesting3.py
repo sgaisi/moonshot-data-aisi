@@ -18,7 +18,7 @@ logger = configure_logger(__name__)
 # These should match your existing connector endpoint file names
 DEFAULT_EVALUATION_ENDPOINTS = [
     "together-gemma2-27b",
-    "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
+    # "amazon-bedrock-anthropic-claude-3-7-sonnet-connector"
 ]
 
 
@@ -106,7 +106,7 @@ class MultiLLMJudge:
                 
         return results
     
-    async def _evaluate_with_connector(self, endpoint_id: str, prompt: str, target: Any, response: str, steps: Dict[str, Any] = None, tools: Optional[List[str]] = None) -> Dict[str, Any]:
+    async def _evaluate_with_connector(self, endpoint_id: str, prompt: str, target: Any, response: str, steps: Dict[str, Any] = None, tools: Optional[List[str]] = None, original_prompt_index: int = None) -> Dict[str, Any]:
         """
         Evaluate using a specific connector
         
@@ -121,7 +121,7 @@ class MultiLLMJudge:
             Dict[str, Any]: Evaluation results
         """
         evaluation_prompt = self._create_evaluation_prompt(prompt, response, tools, steps, target)
-        connector_response = await self._get_connector_response(endpoint_id, evaluation_prompt)
+        connector_response = await self._get_connector_response(endpoint_id, evaluation_prompt, original_prompt_index)
 
         logger.debug(f"RAW response from judge {endpoint_id}:\n--- START RAW ---\n{connector_response}\n--- END RAW ---")
 
@@ -129,7 +129,7 @@ class MultiLLMJudge:
         evaluation["endpoint_id"] = endpoint_id
         return evaluation
     
-    async def _get_connector_response(self, endpoint_id: str, prompt: str) -> str:
+    async def _get_connector_response(self, endpoint_id: str, prompt: str, original_prompt_index: int = None) -> str:
         """
         Get a response from the specified connector
         
@@ -151,7 +151,7 @@ class MultiLLMJudge:
         
         # Create connector prompt arguments
         prompt_args = ConnectorPromptArguments(
-            prompt_index=0,
+            prompt_index=original_prompt_index if original_prompt_index is not None else 0,
             prompt=prompt,
             target="" 
         )
@@ -487,12 +487,12 @@ class JointTesting3(MetricInterface):
         return steps_for_eval_prompt
     
     
-    async def _process_evaluation(self, index, prompt, result, target, context,dataset_tools: List[str]):
+    async def _process_evaluation(self, index, prompt, result, target, context,dataset_tools: List[str], dataset_id: str = None):
         """Process a single evaluation by running it through the judges"""
         try:
             # Extract detailed steps including tool usage information
             steps = self._extract_steps_from_context(context)
-
+            prompt_id = context.get("prompt_id", f"unknown_{index}")
             # Get evaluations from judge models
             judges_evaluations = await self.multi_llm_judge.evaluate_with_multiple_judges(
                 prompt=prompt,
@@ -518,7 +518,7 @@ class JointTesting3(MetricInterface):
 
             # Build result
             evaluation_result = {
-                "prompt_index": index,
+                "prompt_id": prompt_id,
                 "original_prompt": prompt,
                 "target": target,
                 "agent_response": {
@@ -534,8 +534,7 @@ class JointTesting3(MetricInterface):
         except Exception as e:
             logger.error(f"Error processing prompt {index}: {str(e)}")
             return {
-                "prompt_index": index,
-                "original_prompt": prompt,
+                "task_id": dataset_id,
                 "target": target,
                 "llm_response": result,
                 "error": str(e),
@@ -551,11 +550,11 @@ class JointTesting3(MetricInterface):
             total_processed = 0
             outcomes_count = {i: 0 for i in range(1, 12)}
             refusal_summary = {"A": 0, "B": 0, "C": 0}
-
+            failed_dataset_ids = []
             for evaluation in evaluation_results:
                 if "evaluation" not in evaluation:
                     continue
-
+                dataset_id = evaluation.get("dataset_id", "unknown")
                 judge_evals = evaluation["evaluation"].get("judge_evaluations", {})
                 if endpoint_id not in judge_evals:
                     continue
@@ -568,10 +567,10 @@ class JointTesting3(MetricInterface):
                 if refusal in refusal_summary:
                     refusal_summary[refusal] += 1
                 else:
-                    logger.warning(f"Unknown refusal category '{refusal}'")
+                    logger.warning(f"Unknown refusal category '{refusal}' for dataset_id {dataset_id}")
 
                 if not outcome_modes and final_eval == "FAIL":
-                    logger.warning(f"[Fallback] Missing outcomes for FAIL evaluation. Assigning [11]")
+                    logger.warning(f"[Fallback] Missing outcomes for FAIL evaluation on dataset_id {dataset_id}. Assigning [11]")
                     outcome_modes = [11]
                     result["outcomes"] = [11]
 
@@ -616,24 +615,32 @@ class JointTesting3(MetricInterface):
 
         # Extract context from the results
         contexts: List[dict] = []
+        dataset_ids: List[str] = []
+        prompt_ids: List[str] = []
         dataset_tools_list_per_prompt: List[List[str]] = []
-        for result in predicted_results:
+
+        for i, result in enumerate(predicted_results):
             if hasattr(result, 'context') and result.context:
                 context_log = result.context[0]
                 contexts.append(context_log)
+                dataset_ids.append(context_log.get("dataset_id", "unknown_dataset"))
+                prompt_ids.append(context_log.get("prompt_id", f"unknown_{i}"))
                 dataset_tools_list_per_prompt.append(
                     context_log.get("dataset_tools_requested", [])
                 )
             else:
                 contexts.append({})
+                dataset_ids.append("unknown_dataset")
+                prompt_ids.append(f"unknown_{i}")
                 dataset_tools_list_per_prompt.append([])
 
         # Process each prompt and get evaluations
         evaluation_tasks = []
-        for index, (prompt, response, target, context, tools) in enumerate(
-            zip(prompts, predicted_values, targets, contexts, dataset_tools_list_per_prompt)):
+        for index, (prompt, response, target, context, tools, dataset_id, prompt_id) in enumerate(
+            zip(prompts, predicted_values, targets, contexts, dataset_tools_list_per_prompt, dataset_ids, prompt_ids)
+        ):
             evaluation_tasks.append(
-                self._process_evaluation(index, prompt, response, target, context, tools)
+                self._process_evaluation(index, prompt, response, target, context, tools, dataset_id)
             )
         evaluation_results = await asyncio.gather(*evaluation_tasks, return_exceptions=True)
 
@@ -643,7 +650,7 @@ class JointTesting3(MetricInterface):
             if isinstance(res, Exception):
                 logger.error(f"Error in evaluation {i}: {res}")
                 valid_results.append({
-                    "prompt_index": i,
+                    "prompt_id": prompt_ids[i],
                     "original_prompt": prompts[i],
                     "target": targets[i],
                     "llm_response": predicted_values[i],
@@ -653,6 +660,8 @@ class JointTesting3(MetricInterface):
                 })
             else:
                 res.pop('prompt', None)
+                if "prompt_id" not in res:
+                    res["prompt_id"] = prompt_ids[i]
                 valid_results.append(res)
 
         # Calculate statistics
