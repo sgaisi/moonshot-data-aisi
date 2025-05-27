@@ -150,7 +150,7 @@ class ReactAgentWorkflow:
             log_entry = {
                 "query": query,
                 "execution_time": execution_time,
-                "dataset_entry_id": dataset_entry_id,
+                "prompt_id": dataset_entry_id,
                 "error": final_answer,
                 "agents": {},
                 "final_result": final_answer
@@ -192,7 +192,7 @@ class ReactAgentWorkflow:
         log_entry = {
             "query": query,
             "execution_time": execution_time,
-            "dataset_entry_id": dataset_entry_id,
+            "prompt_id": dataset_entry_id,
             "agents": {
                 "planner": {"role": "Task Planner", "plan": planning_output},
                 "executed_tool_steps": {

@@ -492,7 +492,7 @@ class JointTesting3(MetricInterface):
         try:
             # Extract detailed steps including tool usage information
             steps = self._extract_steps_from_context(context)
-
+            prompt_id = context.get("prompt_id", f"unknown_{index}")
             # Get evaluations from judge models
             judges_evaluations = await self.multi_llm_judge.evaluate_with_multiple_judges(
                 prompt=prompt,
@@ -518,7 +518,7 @@ class JointTesting3(MetricInterface):
 
             # Build result
             evaluation_result = {
-                "task_id": dataset_id,
+                "prompt_id": prompt_id,
                 "original_prompt": prompt,
                 "target": target,
                 "agent_response": {
@@ -615,32 +615,30 @@ class JointTesting3(MetricInterface):
 
         # Extract context from the results
         contexts: List[dict] = []
+        dataset_ids: List[str] = []
+        prompt_ids: List[str] = []
         dataset_tools_list_per_prompt: List[List[str]] = []
-        dataset_ids: List[str] = []        
-        for result in predicted_results:
+
+        for i, result in enumerate(predicted_results):
             if hasattr(result, 'context') and result.context:
                 context_log = result.context[0]
                 contexts.append(context_log)
+                dataset_ids.append(context_log.get("dataset_id", "unknown_dataset"))
+                prompt_ids.append(context_log.get("prompt_id", f"unknown_{i}"))
                 dataset_tools_list_per_prompt.append(
                     context_log.get("dataset_tools_requested", [])
                 )
-                task_id = context_log.get("task_id")
-                dataset_ids.append(task_id)
             else:
                 contexts.append({})
+                dataset_ids.append("unknown_dataset")
+                prompt_ids.append(f"unknown_{i}")
                 dataset_tools_list_per_prompt.append([])
-                dataset_ids.append(None)
-
-        if not any(dataset_ids) and targets:
-            if hasattr(targets[0], 'id'):
-                dataset_ids = [t.id if hasattr(t, 'id') else None for t in targets]
-            elif isinstance(targets[0], dict) and 'id' in targets[0]:
-                dataset_ids = [t.get('id') for t in targets]
 
         # Process each prompt and get evaluations
         evaluation_tasks = []
-        for index, (prompt, response, target, context, tools, dataset_id) in enumerate(
-            zip(prompts, predicted_values, targets, contexts, dataset_tools_list_per_prompt, dataset_ids)):
+        for index, (prompt, response, target, context, tools, dataset_id, prompt_id) in enumerate(
+            zip(prompts, predicted_values, targets, contexts, dataset_tools_list_per_prompt, dataset_ids, prompt_ids)
+        ):
             evaluation_tasks.append(
                 self._process_evaluation(index, prompt, response, target, context, tools, dataset_id)
             )
@@ -652,7 +650,7 @@ class JointTesting3(MetricInterface):
             if isinstance(res, Exception):
                 logger.error(f"Error in evaluation {i}: {res}")
                 valid_results.append({
-                    "task_id": dataset_ids[i] if i < len(dataset_ids) else f"unknown_{i}",
+                    "prompt_id": prompt_ids[i],
                     "original_prompt": prompts[i],
                     "target": targets[i],
                     "llm_response": predicted_values[i],
@@ -662,9 +660,9 @@ class JointTesting3(MetricInterface):
                 })
             else:
                 res.pop('prompt', None)
-                # if 'dataset_id' not in res:
-                #     res['dataset_id'] = dataset_ids[i] if i < len(dataset_ids) else f"unknown_{i}"
-                # valid_results.append(res)
+                if "prompt_id" not in res:
+                    res["prompt_id"] = prompt_ids[i]
+                valid_results.append(res)
 
         # Calculate statistics
         judge_results = self._calculate_judge_results(valid_results)
