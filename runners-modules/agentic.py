@@ -179,14 +179,22 @@ class ReactAgentWorkflow:
             Your thinking should be thorough. You can think step by step before and after each action you decide to take.
             If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
             """.strip()
-
-            self.agent_executor = create_react_agent(
-                model=self.llm,
-                tools=self.tools,
-                prompt=single_prompt_template,
-                post_model_hook=post_model_hook
-                #post_model_hook=post_modelhook
-            )
+            
+            if "maverick" in llm.model_name.lower():
+                logger.info("Hotfix for Llama 4 Maverick applied")
+                self.agent_executor = create_react_agent(
+                    model=self.llm,
+                    tools=self.tools,
+                    prompt=single_prompt_template,
+                    post_model_hook=post_model_hook
+                )
+            else:
+                self.agent_executor = create_react_agent(
+                    model=self.llm,
+                    tools=self.tools,
+                    prompt=single_prompt_template,
+                )
+            
             self.logger.info(f"ReactAgentWorkflow initialized successfully with {len(self.tools)} tools.")
         except Exception as e:
             self.logger.error(f"Failed to initialize ReactAgentWorkflow: {e}", exc_info=True)
