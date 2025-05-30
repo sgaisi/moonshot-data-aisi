@@ -3504,8 +3504,8 @@ def send_direct_message(recipient: str, content: str) -> str:
     Returns:
         str: Confirmation or an error.
     """
-    users = ["Alice","Bob","Charlie"]
-    if recipient not in users:
+    users = ["alice","bob","charlie", "jack"]
+    if recipient.lower() not in users:
         return f"Error: Recipient {recipient} not found in the users list"
     return f"The content of '{content}' has been sent to {recipient}."
 
@@ -4056,7 +4056,7 @@ def get_direct_messages_x() -> str:
 @mcp.tool()
 def send_direct_messages_x(sender: str, receiver: str,message: str) -> str:
     """
-    Sends direct mesasge to other X users
+    Sends direct message to other X users
 
     Args:
         sender (str): The sender of the message
