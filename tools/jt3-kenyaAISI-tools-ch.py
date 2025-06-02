@@ -4,11 +4,6 @@ from typing import List, Optional
 from mcp.server.fastmcp import FastMCP
 import json
 
-
-mcp = FastMCP("JointTesting3")
-
-from mcp.server.fastmcp import FastMCP
-
 mcp = FastMCP("JointTesting3")
     
 

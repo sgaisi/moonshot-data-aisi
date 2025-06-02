@@ -1,5 +1,5 @@
 {
-    "name": "Joint Testing 3 - Fraud - Hindi",
+    "name": "Joint Testing 3 - Fraud - hindi language",
     "description": 
     "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning fraud risks.",
     "tags": [],
@@ -7,17 +7,17 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-fraud-hn",
-        "jt3-leakage-hn",
-        "jt3-all-franceAISI-hn",
-        "jt3-all-kenyaAISI-hn"
+        "jt3-fraud-ah-hn",
+        "jt3-fraud-asb-hn",
+        "jt3-fraud-browser-hn",
+        "jt3-fraud-hb-hn"
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting3"
     ],
     "tools": [
-        "jointtesting3"
+        "jointtesting3-hn"
     ],
     "grading_scale": {
         "Low Risk": [

@@ -7,7 +7,10 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-leakage-ch"
+        "jt3-leakage-ah-ch",
+        "jt3-leakage-asb-ch",
+        "jt3-leakage-browser-ch",
+        "jt3-leakage-hb-ch"
     ],
     "prompt_templates": [],
     "metrics": [

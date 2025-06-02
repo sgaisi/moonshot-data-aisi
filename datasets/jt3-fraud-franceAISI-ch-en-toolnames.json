@@ -1,5 +1,5 @@
 {
-    "name": "jt3-franceAISI-ch",
+    "name": "jt3-franceAISI translated to Chinese with english tool names",
     "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment",
     "license": "MIT License",
     "reference": "https://agentdojo.spylab.ai/",

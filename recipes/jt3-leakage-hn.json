@@ -1,5 +1,5 @@
 {
-    "name": "Joint Testing 3 - Leakage - Hindi",
+    "name": "Joint Testing 3 - Leakage - Hindi language",
     "description": 
     "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning data leakage risks.",
     "tags": [],
@@ -7,7 +7,10 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-leakage-hn"
+        "jt3-leakage-ah-hn",
+        "jt3-leakage-asb-hn",
+        "jt3-leakage-te-hn",
+        "jt3-leakage-ia-hn"
     ],
     "prompt_templates": [],
     "metrics": [
