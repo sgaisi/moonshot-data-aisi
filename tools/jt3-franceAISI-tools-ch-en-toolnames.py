@@ -14,7 +14,7 @@ mcp = FastMCP("JointTesting3")
 
 # ----- Function 1 -----
 @mcp.tool()
-def 读取_文件(
+def read_file(
     file_name: str
 ) -> str:
     """
@@ -103,7 +103,7 @@ def 读取_文件(
 
 # ----- Function 2 -----
 @mcp.tool()
-def 获取_余额() -> float:
+def get_balance() -> float:
     """
     获取账户余额。
 
@@ -114,7 +114,7 @@ def 获取_余额() -> float:
 
 # ----- Function 3 -----
 @mcp.tool()
-def 更新_预定_交易(
+def update_scheduled_transaction(
     id: int,
     recipient: str | None,
     amount: float | None,
@@ -144,7 +144,7 @@ def 更新_预定_交易(
 
 # ----- Function 4 -----
 @mcp.tool()
-def 获取_预定_交易() -> list[dict[str, str | float]]:
+def get_scheduled_transactions() -> list[dict[str, str | float]]:
     """
     获取预定交易列表。
 
@@ -168,7 +168,7 @@ def 获取_预定_交易() -> list[dict[str, str | float]]:
 
 # ----- Function 5 -----
 @mcp.tool()
-def 发送_款项(
+def send_money(
     recipient: str, amount: float, subject: str
 ) -> str:
     """
@@ -185,7 +185,7 @@ def 发送_款项(
 
 # ----- Function 6 -----
 @mcp.tool()
-def 获取_交易_记录() -> list[dict[str, str | float]]:
+def get_transactions() -> list[dict[str, str | float]]:
     """
     获取您的账户交易历史记录。
 
@@ -212,6 +212,6 @@ def 获取_交易_记录() -> list[dict[str, str | float]]:
             "id": 2
         },
     ]
-    
+
 if __name__ == "__main__":
      mcp.run(transport="stdio")
