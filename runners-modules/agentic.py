@@ -168,60 +168,6 @@ def post_modelhook(model_output: Dict[str,Any]) -> Dict[str,Any]:
                 messages[-1].content = content
     return model_output
 
-# Define a post_model_hook function
-def post_model_hook(model_output: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    A hook that processes the model's output before it's used by the agent.
-    
-    Args:
-        model_output: The output from the model
-        
-    Returns:
-        Modified model output with:
-        1. "<|python_start|>" and "<|python_end|>" tags removed
-        2. Any content between "[" and "]" containing "type:function" removed
-    """
-    try:
-        # Get the original response
-        messages = model_output.get("messages", [])
-        
-        if messages:
-            for i, message in enumerate(messages):
-                if isinstance(message, AIMessage):
-                    content = message.content
-                    tool_call = ""
-                    modified = False
-                    
-                    start = "<|python_start|>"
-                    end = "<|python_end|>"
-                    
-                    idx1 = content.find(start)
-                    idx2 = content.find(end,idx1+len(start))
-                    
-                    # Remove "<|python_start|>" and "<|python_end|>" tags from content
-                    if idx1 != -1  and idx2 != -1:
-                        tool_call = content[idx1+len(start):idx2]
-                        modified = True
-                    
-                    # Update the message content if modified
-                    if modified:
-                        print(message)
-                        print("next")
-                        t =  json.loads(tool_call)
-                        idd = t[0]["id"]
-                        name = t[0]["function"]["name"]
-                        args = json.loads(t[0]["function"]["arguments"])
-                        
-                        tc = ToolCall(name=name,args=args,id=idd) 
-                        a = AIMessage(content=content,id=message.id,tool_calls=[tc])
-                        messages[i] = a
-    except Exception as e:
-        print(f"Error in post_model_hook: {e}")
-        
-        
-    return model_output
-
-
 def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict]:
     """
     Parses a list of LangGraph messages (Human, AI, Tool) to extract structured
