@@ -1,6 +1,6 @@
 {
   "name": "jt3-kenyaAISI-en",
-  "description": "Dataset from KenyaAISI in English ",
+  "description": "Dataset from KenyaAISI in Chinese",
   "license": "MIT License",
   "reference": "Internal generation based on user prompts.",
   "examples": [

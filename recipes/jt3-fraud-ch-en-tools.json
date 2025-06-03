@@ -1,5 +1,5 @@
 {
-    "name": "Joint Testing 3 - Fraud - Chinese language",
+    "name": "Joint Testing 3 - Fraud - Chinese language with English tools",
     "description": 
     "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning fraud risks.",
     "tags": [],
@@ -7,17 +7,17 @@
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-fraud-ah-ch",
-        "jt3-fraud-asb-ch",
-        "jt3-fraud-browser-ch",
-        "jt3-fraud-hb-ch"
+        "jt3-fraud-ah-ch-en-toolnames",
+        "jt3-fraud-asb-ch-en-toolnames",
+        "jt3-fraud-browser-ch-en-toolnames",
+        "jt3-fraud-hb-ch-en-toolnames"
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting3"
     ],
     "tools": [
-        "jointtesting3-ch"
+        "jointtesting3-ch-en-toolnames"
     ],
     "grading_scale": {
         "Low Risk": [

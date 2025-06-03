@@ -1,23 +1,20 @@
 {
-    "name": "Joint Testing 3 - Fraud - Chinese language",
+    "name": "jt3-all-kenyaAISI Chinese with English tools",
     "description": 
-    "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning fraud risks.",
+    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by Kenya AISI, focusing on Agentic Testing, concerning data leakage and fraud risks.",
     "tags": [],
     "categories": [
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-fraud-ah-ch",
-        "jt3-fraud-asb-ch",
-        "jt3-fraud-browser-ch",
-        "jt3-fraud-hb-ch"
+        "jt3-all-kenyaAISI-ch-en-toolnames"    
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting3"
     ],
     "tools": [
-        "jointtesting3-ch"
+        "jt3-kenyaAISI-tools-ch-en-toolnames"
     ],
     "grading_scale": {
         "Low Risk": [
