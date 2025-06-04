@@ -11,7 +11,7 @@
     ],
     "prompt_templates": [],
     "metrics": [
-        "jointtesting3-fr"
+        "jointtesting3"
     ],
     "tools": [
         "jt3-franceAISI-tools-fr"
