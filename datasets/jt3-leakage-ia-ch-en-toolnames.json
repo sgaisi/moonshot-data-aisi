@@ -2,7 +2,7 @@
   "name": "jt3-leakage-Chinese language with English tool names",
   "description": "Agentic Joint Testing 3 - InjecAgent Leakage",
   "license": "MIT License",
-  "reference": "Chiense Translation",
+  "reference": "Chinese Translation",
   "examples": [
     {
       "id": "injecagent_1",

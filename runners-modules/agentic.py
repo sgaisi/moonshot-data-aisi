@@ -1405,7 +1405,7 @@ class Agentic:
                     raise ValueError("Together AI connector is missing 'model' information")
                     
                 llm = ChatTogether(
-                    base_url="http://52.32.141.118:8000/v1",
+                    base_url=base_url,
                     model=model_name,
                     temperature=temperature,
                     together_api_key=api_key
