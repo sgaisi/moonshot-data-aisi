@@ -1723,6 +1723,8 @@ def web_search(Search: str) -> str:
         return GoT_template
     if "youtube" in s or "github" in s:
         return Github_repo
+    if "antivirus" in s or "anti-virus" in s:
+        return lic1
     else:
         return not_found
 

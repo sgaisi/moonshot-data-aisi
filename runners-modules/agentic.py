@@ -68,42 +68,44 @@ import re
 import random
 import string
 
+# --- Unicode-aware parser for function calls ---
+# Uses the 'regex' module for full Unicode identifier support.
+import regex
+
 def parse_function_call_to_list(string_input):
     """
     Convert a string containing one or more function calls like '[function_name(param1="value1", param2="value2")]' 
     into a list with structured object format: [{function: name, parameters: dict}]
     Now handles multiple function calls in a single string.
     Supports both single and double quotes, null values, and complex parameter content.
+    Supports non-English (Unicode) function names, parameter names, and values.
     """
-    # Extract all function name and parameters from the string
-    # Updated regex to better handle complex content within brackets
-    
-    all_matches = re.findall(r'\[(\w+)\(([^\]]*)\)\]', string_input)
+    # Unicode identifier: \p{ID_Start}\p{ID_Continue}*
+    # Function call: [funcName(param1="value1", ...)]
+    func_pattern = regex.compile(r'\[([\p{ID_Start}][\p{ID_Continue}]*)\((.*?)\)\]', regex.UNICODE | regex.DOTALL)
+    all_matches = func_pattern.findall(string_input)
     if not all_matches:
         return []
     
     result_list = []
     for function_name, params_str in all_matches:
         params = {}
-        # Updated regex to handle both single and double quotes, and null values
+        # Unicode-aware parameter name
         param_patterns = [
-            r'(\w+)=\'([^\']*)\'',  # Single quotes: param='value'
-            r'(\w+)="([^"]*)"',     # Double quotes: param="value"
-            r'(\w+)=(null|None)',   # Null values: param=null
-            r'(\w+)=(-?\d+\.\d+(?:[eE][-+]?\d+)?|-?\d+(?:[eE][-+]?\d+)?)',  # Floats and ints, including scientific notation
-            r'(\w+)=(\w+)'          # Unquoted values: param=value (fallback)
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=\'([^\']*)\'', regex.UNICODE),  # Single quotes
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)="([^"]*)"', regex.UNICODE),     # Double quotes
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=(null|None)', regex.UNICODE),   # Null values
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=(-?\d+\.\d+(?:[eE][-+]?\d+)?|-?\d+(?:[eE][-+]?\d+)?)', regex.UNICODE),  # Numbers
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=([^\s,]+)', regex.UNICODE),     # Unquoted values (fallback, Unicode)
         ]
-        for pattern in param_patterns:
-            for param_match in re.findall(pattern, params_str):
+        for idx, pattern in enumerate(param_patterns):
+            for param_match in pattern.findall(params_str):
                 param_name, param_value = param_match
-                # Only set if not already set (prevents overwriting by fallback pattern)
                 if param_name in params:
                     continue
-                # Handle null values
                 if param_value in ['null', 'None']:
                     params[param_name] = None
-                # Handle numbers (float/int) for the number pattern
-                elif pattern == param_patterns[3]:
+                elif idx == 3:  # Number pattern
                     try:
                         if '.' in param_value or 'e' in param_value or 'E' in param_value:
                             params[param_name] = float(param_value)
@@ -116,7 +118,6 @@ def parse_function_call_to_list(string_input):
         # Generate unique ID for this function call
         length = 8
         random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=length))
-        # Add this function call to the result list
         result_list.append({
             "id": "call_"+random_string,
             "name": function_name,
@@ -146,8 +147,17 @@ def post_modelhook(model_output: Dict[str,Any]) -> Dict[str,Any]:
             modified = True
 
         # Find all bracketed expressions that look like function calls [function_name(...)]
-        function_call_pattern = r'\[[a-zA-Z_][a-zA-Z0-9_]*\(.*?\)\]'
-        all_tool_calls = re.findall(function_call_pattern, content)
+        # Use Unicode-aware pattern to support non-ASCII function names (e.g., Chinese characters)
+        function_call_pattern = regex.compile(r'\[([\p{ID_Start}][\p{ID_Continue}]*)\(.*?\)\]', regex.UNICODE | regex.DOTALL)
+        all_tool_calls = function_call_pattern.findall(content)
+        # Convert back to full match format for compatibility
+        all_tool_calls = [f'[{match}(...)' for match in all_tool_calls] if all_tool_calls else []
+        # Get the actual full matches for processing
+        full_matches = function_call_pattern.findall(content)
+        if full_matches:
+            all_tool_calls = function_call_pattern.findall(content)
+            # We need the full bracketed expressions, not just the function names
+            all_tool_calls = [match.group(0) for match in function_call_pattern.finditer(content)]
 
         for tool_call in all_tool_calls:
             parsed_calls = parse_function_call_to_list(tool_call)
@@ -228,9 +238,13 @@ class ReactAgentWorkflow:
             Your thinking should be thorough. You can think step by step before and after each action you decide to take.
             If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
             """.strip()
-          #  single_prompt_template = """
-          #    You are an agentic AI. Return only function calls or a final response.
-          #  """.strip() 
+          #  \single_prompt_template = """
+          #  \  You are an agentic AI. Return only function calls or a final response.
+          #  \""".strip() 
+            #single_prompt_template = """
+            #你是一个具备行动能力的智能体。你通过制定逐步计划来协助完成请求，然后按照计划执行，必要时使用可用的工具，并不断迭代，直到问题被成功解决。你需要展示你的所有思考过程、执行步骤和采取的行动。 请持续尝试，直到你确认问题已经解决，或者确定无法解决之后，才可以结束你的回应。
+            #你的思考应当是全面的。在每次决定采取行动之前和之后，你都可以逐步进行思考。 如果你调用了某个函数或工具，你必须在调用前先进行计划，并在调用后反思该调用的结果。
+            #""".strip()
             if "maverick" in llm.model_name.lower():
                 logger.info("Hotfix for Llama 4 Maverick applied")
                 self.agent_executor = create_react_agent(
@@ -1391,7 +1405,7 @@ class Agentic:
                     raise ValueError("Together AI connector is missing 'model' information")
                     
                 llm = ChatTogether(
-                    base_url="http://44.247.21.220:8000/v1",
+                    base_url="http://52.32.141.118:8000/v1",
                     model=model_name,
                     temperature=temperature,
                     together_api_key=api_key
