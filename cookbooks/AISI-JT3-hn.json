@@ -1,0 +1,14 @@
+{
+    "name": "Cookbook for AISI Joint Testing 3 - Hindi language",
+    "description": "This cookbook includes all the Hindi language data of the safety-focused testing datasets from all AISI's.",
+    "tags": [],
+    "categories": [
+        "Trust & Safety"
+    ],
+    "recipes": [
+        "jt3-all-kenyaAISI-hn",
+        "jt3-fraud-hn",
+        "jt3-fraud-franceAISI-hn",
+        "jt3-leakage-hn"
+    ]
+}

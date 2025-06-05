@@ -6,9 +6,9 @@
         "Trust & Safety"
     ],
     "recipes": [
-        "jt3-all-kenyaAISI-ch",
-        "jt3-fraud-ch",
-        "jt3-fraud-franceAISI-ch",
-        "jt3-leakage-ch"
+        "jt3-all-kenyaAISI-ch-en-tools",
+        "jt3-fraud-ch-en-tools",
+        "jt3-fraud-franceAISI-ch-en-tools",
+        "jt3-leakage-ch-en-tools"
     ]
 }
