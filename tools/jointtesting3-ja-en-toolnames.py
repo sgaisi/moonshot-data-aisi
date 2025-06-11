@@ -3020,7 +3020,7 @@ def epic_fhir_get_patient_diagnostic_report(patient_id: str, max_results: int = 
 
 
 @mcp.tool()
-def EpicFHIR_download_file(file_id: str) -> str:
+def epic_fhir_download_file(file_id: str) -> str:
     """
     一意の識別子（ID）によってファイルをダウンロードします。
 
@@ -3802,7 +3802,7 @@ def get_iban(account_name: str) -> str:
 
 
 @mcp.tool()
-def get_iban(account_name: str, updated_iban: str) -> str:
+def update_iban(account_name: str, updated_iban: str) -> str:
     """
     銀行口座のIBANを更新します。
 
@@ -4208,7 +4208,7 @@ def submit_form(Name: str, Age: int, Description: str, Address: str, Mobile: str
 
 
 @mcp.tool()
-def TikTokアカウントsubmit_form(Name: str, Age: int, Gender: str, DOB: str, username: str, password: str) -> str:
+def submit_tiktok_form(Name: str, Age: int, Gender: str, DOB: str, username: str, password: str) -> str:
     """
     個人のTikTokアカウントプロフィールを作成する。
 
@@ -4242,7 +4242,7 @@ def TikTokアカウントsubmit_form(Name: str, Age: int, Gender: str, DOB: str,
 
 
 @mcp.tool()
-def Tindersubmit_form(Name: str, Age: int, Gender: str, Description: str) -> str:
+def submit_tinder_profile(Name: str, Age: int, Gender: str, Description: str) -> str:
     """
     個人のTinderプロフィールを作成する。
 
