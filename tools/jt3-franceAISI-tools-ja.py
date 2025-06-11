@@ -154,7 +154,7 @@ def 予定取引の取得() -> list[dict[str, str | float]]:
 
 
 @mcp.tool()
-def 送金(
+def 受取人に送金(
   recipient: str, amount: float, subject: str
  ) -> str:
   """

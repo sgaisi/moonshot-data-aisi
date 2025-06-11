@@ -154,7 +154,7 @@ def get_scheduled_transactions() -> list[dict[str, str | float]]:
 
 
 @mcp.tool()
-def transfer_money(
+def send_money(
   recipient: str, amount: float, subject: str
  ) -> str:
   """
