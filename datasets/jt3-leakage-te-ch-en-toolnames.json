@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-Chinese language with english tool names",
-  "description": "Agentic Joint Testing 3 - Leakage samples",
-  "license": "MIT License",
-  "reference": "Chiense Translation",
+  "name": "Joint Testing 3 - Leakage - ToolEmu - Chinese - English tool names",
+  "description": "Agentic testing dataset adapted from ToolEmu, concerning data leakage risks, translated into Chinese by the Australia AISI, with English tool names.",
+  "license": "Apache-2.0 license",
+  "reference": "https://github.com/ryoungj/ToolEmu",
   "examples": [
     {
       "id": "toolemu_1",

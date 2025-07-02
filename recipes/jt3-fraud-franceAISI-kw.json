@@ -1,6 +1,7 @@
 {
-    "name": "jt3-fraud-franceAISI-kw",
-    "description": "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing using the France AISI-contributed fraud dataset, translated into Swahili.",
+    "name": "Joint Testing 3 - Fraud - France AISI - Swahili",
+    "description":
+    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by France AISI, focusing on Agentic Testing, concerning fraud risks, translated into Swahili.",
     "tags": [],
     "categories": [
         "Trust & Safety"

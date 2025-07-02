@@ -1,8 +1,8 @@
 {
-  "name": "jt3-kenyaAISI-hn",
-  "description": "Dataset from KenyaAISI in Hindi",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - Hindi",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into Hindi by the Singapore AISI.",
   "license": "MIT License",
-  "reference": "Internal generation based on user prompts.",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",

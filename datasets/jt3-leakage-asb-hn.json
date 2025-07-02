@@ -1,6 +1,6 @@
 {
-  "name": "jt3-leakage-asb-hn",
-  "description": "Agentic Joint Testing 3 - Leakage - Agent-SafetyBench samples",
+  "name": "Joint Testing 3 - Leakage - Agent-SafetyBench - Hindi",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning data leakage risks, translated into Hindi by the Singapore AISI.",
   "license": "MIT License",
   "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [

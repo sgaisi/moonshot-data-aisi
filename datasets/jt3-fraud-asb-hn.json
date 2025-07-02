@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 AgentSafety Fraud Hindi Dataset",
-  "description": "Agentic Joint Testing 3 - AgentSafety Fraud data candidates",
+  "name": "Joint Testing 3 - Fraud - Agent-SafetyBench - Hindi",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning fraud risks, translated into Hindi by the Singapore AISI.",
   "license": "MIT License",
-  "reference": "AgentSafety",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_fraud_1",

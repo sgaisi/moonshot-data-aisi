@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 Swahili Dataset",
-  "description": "Joint Testing 3 multilingual Swahili dataset",
+  "name": "Joint Testing 3 - Leakage - InjecAgent - Swahili",
+  "description": "Agentic testing dataset adapted from InjecAgent, concerning data leakage risks, translated into Swahili by the Kenya AISI.",
   "license": "MIT License",
-  "reference": "JT3",
+  "reference": "https://github.com/uiuc-kang-lab/InjecAgent",
   "examples": [
     {
       "id": "injecagent_1",

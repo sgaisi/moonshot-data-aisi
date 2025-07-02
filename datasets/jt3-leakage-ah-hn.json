@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-hn",
-  "description": "Agentic Joint Testing 3 - Leakage - AgentHarm samples",
+  "name": "Joint Testing 3 - Leakage - AgentHarm - Hindi",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning data leakage risks, translated into Hindi by the Singapore AISI.",
   "license": "MIT License",
-  "reference": "AgentHarm",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_1",

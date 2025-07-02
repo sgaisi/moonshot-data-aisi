@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-Chinese language with english tool names",
-  "description": "Agentic Joint Testing 3 - Leakage samples",
+  "name": "Joint Testing 3 - Leakage - AgentHarm - Chinese - English tool names",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning data leakage risks, translated into Chinese by the Australia AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Chiense Translation",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_1",

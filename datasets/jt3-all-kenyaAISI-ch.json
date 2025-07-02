@@ -1,8 +1,8 @@
 {
-  "name": "jt3-kenyaAISI-en",
-  "description": "Dataset from KenyaAISI in English ",
+  "name": "Joint Testing 3 - All - Kenya AISI - Chinese",
+  "description": "Agentic testing dataset from Kenya AISI, concerning data leakage and fraud risks, translated into Chinese by the Australia AISI.",
   "license": "MIT License",
-  "reference": "Internal generation based on user prompts.",
+  "reference": "Kenya AISI",
   "examples": [
     {
       "id": "kenya_fraud_1",

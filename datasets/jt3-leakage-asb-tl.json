@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 ASB Telugu Dataset",
-  "description": "Agentic Joint Testing 3 - ASB data candidates (Telugu)",
+  "name": "Joint Testing 3 - Leakage - Agent-SafetyBench - Telugu",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning data leakage risks, translated into Telugu by the Canada AISI.",
   "license": "MIT License",
-  "reference": "ASB",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_1",

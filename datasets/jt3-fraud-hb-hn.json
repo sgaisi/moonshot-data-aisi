@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 HarmBench Fraud Hindi Datase",
-  "description": "Agentic Joint Testing 3 - HarmBench Fraud data candidates",
+  "name": "Joint Testing 3 - Fraud - HarmBench - Hindi",
+  "description": "Agentic testing dataset adapted from HarmBench, concerning fraud risks, translated into Hindi by the Singapore AISI.",
   "license": "MIT License",
-  "reference": "HarmBench",
+  "reference": "https://github.com/centerforaisafety/HarmBench",
   "examples": [
     {
       "id": "hb_fraud_1",

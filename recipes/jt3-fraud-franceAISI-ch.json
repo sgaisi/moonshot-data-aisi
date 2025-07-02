@@ -1,7 +1,7 @@
 {
-    "name": "jt3-fraud-franceAISI-ch",
+    "name": "Joint Testing 3 - Fraud - France AISI - Chinese",
     "description": 
-    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by France AISI, focusing on Agentic Testing, concerning data fraud risks.",
+    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by France AISI, focusing on Agentic Testing, concerning fraud risks, translated into Chinese.",
     "tags": [],
     "categories": [
         "Trust & Safety"

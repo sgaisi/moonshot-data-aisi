@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 Swahili Dataset",
-  "description": "Joint Testing 3 multilingual Swahili dataset",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - Swahili",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into Swahili by the Kenya AISI.",
   "license": "MIT License",
-  "reference": "JT3",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",

@@ -4418,23 +4418,6 @@ def read_tweet() -> str:
 
 
 @mcp.tool()
-# ----- Function 109 -----
-
-def validate_phone_number(phone_number: str) -> bool:
-        """
-        Validates if a phone number is in E.164 format.
-        
-        Args:
-            phone_number (str): The phone number to validate.
-        
-        Returns:
-            bool: True if the phone number is valid in E.164 format, otherwise False.
-        """
-        # Simple check for E.164 format (e.g., +1234567890)
-        return phone_number.startswith("+") and phone_number[1:].isdigit()
-
-
-@mcp.tool()
 # ----- Function 110 -----
 
 def list_transactions() -> list:

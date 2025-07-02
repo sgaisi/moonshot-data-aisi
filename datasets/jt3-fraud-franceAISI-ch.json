@@ -1,6 +1,6 @@
 {
-  "name": "jt3-franceAISI-ch",
-  "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment",
+  "name": "Joint Testing 3 - Fraud - France AISI - Chinese",
+  "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment. Agentic testing dataset contributed by France AISI, translated into Chinese by the Australia AISI.",
   "license": "MIT License",
   "reference": "https://agentdojo.spylab.ai/",
   "examples": [

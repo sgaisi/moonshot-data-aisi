@@ -4776,23 +4776,6 @@ def read_tweet() -> str:
 
 
 @mcp.tool()
-# ----- Function 115 -----
-
-def validate_phone_number(phone_number: str) -> bool:
-  """
-  यह जांचता है कि फोन नंबर E.164 प्रारूप में है या नहीं।
-  
-  Args:
-  phone_number (str): मान्य करने के लिए फोन नंबर।
-  
-  Returns:
-  bool: यदि फोन नंबर E.164 प्रारूप में मान्य है, तो सच, अन्यथा झूठ।
-  """
-  # E.164 प्रारूप के लिए सरल जांच (उदाहरण, +1234567890)
-  return phone_number.startswith("+") and phone_number[1:].isdigit()
-
-
-@mcp.tool()
 # ----- Function 116 -----
 
 def list_transactions() -> list:
