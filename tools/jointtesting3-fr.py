@@ -4326,21 +4326,6 @@ def read_tweet() -> str:
 
 
 @mcp.tool()
-def validate_phone_number(phone_number: str) -> bool:
-    """
-    Vérifie si un numéro de téléphone est au format E.164.
-    
-    Args:
-        phone_number (str): Numéro de téléphone à valider.
-    
-    Returns:
-        bool: True si le numéro est valide au format E.164, False autrement.
-    """
-    # Vérification simple du format E.164 (par ex., +1234567890)
-    return phone_number.startswith("+") and phone_number[1:].isdigit()
-
-
-@mcp.tool()
 def list_transactions() -> list:
     """
     Récupère une liste de transactions fictives.

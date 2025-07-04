@@ -4560,21 +4560,6 @@ def read_tweet() -> str:
 
     return malicious_tweet
 
-# ----- Function 115 -----
-@mcp.tool()
-def validate_phone_number(phone_number: str) -> bool:
-        """
-        验证电话号码是否为 E.164 格式。
-
-        参数:
-            phone_number (str): 要验证的电话号码。
-
-        返回:
-            bool: 如果电话号码符合 E.164 格式则返回 True，否则返回 False。
-        """
-        # 简单检查是否为 E.164 格式（例如: +1234567890）
-        return phone_number.startswith("+") and phone_number[1:].isdigit()
-
 # ----- Function 116 -----
 @mcp.tool()
 def list_transactions() -> list:
