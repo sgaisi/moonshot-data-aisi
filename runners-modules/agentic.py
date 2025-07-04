@@ -46,11 +46,13 @@ from pydantic import BaseModel, Field
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain_core.messages.tool import ToolCall
+
+
+import traceback
 
 # Create a logger for this module
 logger = configure_logger(__name__)
-
-
 
 def get_tools(tool_loc : list[str]):
     base_loc = "moonshot-data-aisi/tools/"
@@ -61,8 +63,120 @@ def get_tools(tool_loc : list[str]):
     args=[final_loc],
     )
     return server_params
-    
 
+import re
+import random
+import string
+
+# --- Unicode-aware parser for function calls ---
+# Uses the 'regex' module for full Unicode identifier support.
+import regex
+
+def parse_function_call_to_list(string_input):
+    """
+    Convert a string containing one or more function calls like '[function_name(param1="value1", param2="value2")]' 
+    into a list with structured object format: [{function: name, parameters: dict}]
+    Now handles multiple function calls in a single string.
+    Supports both single and double quotes, null values, and complex parameter content.
+    Supports non-English (Unicode) function names, parameter names, and values.
+    """
+    # Unicode identifier: \p{ID_Start}\p{ID_Continue}*
+    # Function call: [funcName(param1="value1", ...)]
+    func_pattern = regex.compile(r'\[([\p{ID_Start}][\p{ID_Continue}]*)\((.*?)\)\]', regex.UNICODE | regex.DOTALL)
+    all_matches = func_pattern.findall(string_input)
+    if not all_matches:
+        return []
+    
+    result_list = []
+    for function_name, params_str in all_matches:
+        params = {}
+        # Unicode-aware parameter name
+        param_patterns = [
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=\'([^\']*)\'', regex.UNICODE),  # Single quotes
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)="([^"]*)"', regex.UNICODE),     # Double quotes
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=(null|None)', regex.UNICODE),   # Null values
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=(-?\d+\.\d+(?:[eE][-+]?\d+)?|-?\d+(?:[eE][-+]?\d+)?)', regex.UNICODE),  # Numbers
+            regex.compile(r'([\p{ID_Start}][\p{ID_Continue}]*)=([^\s,]+)', regex.UNICODE),     # Unquoted values (fallback, Unicode)
+        ]
+        for idx, pattern in enumerate(param_patterns):
+            for param_match in pattern.findall(params_str):
+                param_name, param_value = param_match
+                if param_name in params:
+                    continue
+                if param_value in ['null', 'None']:
+                    params[param_name] = None
+                elif idx == 3:  # Number pattern
+                    try:
+                        if '.' in param_value or 'e' in param_value or 'E' in param_value:
+                            params[param_name] = float(param_value)
+                        else:
+                            params[param_name] = int(param_value)
+                    except ValueError:
+                        params[param_name] = param_value
+                else:
+                    params[param_name] = param_value
+        # Generate unique ID for this function call
+        length = 8
+        random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+        result_list.append({
+            "id": "call_"+random_string,
+            "name": function_name,
+            "args": params,
+            'type': 'tool_call'
+        })
+    return result_list
+
+def post_modelhook(model_output: Dict[str,Any]) -> Dict[str,Any]:
+    messages = model_output.get("messages",[])
+    # get the last msg
+    last_msg = messages[-1]
+    if isinstance(last_msg,AIMessage):
+        content = last_msg.content
+        modified = False
+
+        # Remove all content from "assistant\n\n" onward (inclusive)
+        assistant_marker = "assistant\n\n"
+        idx = content.find(assistant_marker)
+        if idx != -1:
+            content = content[:idx]
+            modified = True
+
+        # Replace all "ipython" instances with empty string
+        if "ipython" in content:
+            content = content.replace("ipython", "")
+            modified = True
+
+        # Find all bracketed expressions that look like function calls [function_name(...)]
+        # Use Unicode-aware pattern to support non-ASCII function names (e.g., Chinese characters)
+        function_call_pattern = regex.compile(r'\[([\p{ID_Start}][\p{ID_Continue}]*)\(.*?\)\]', regex.UNICODE | regex.DOTALL)
+        all_tool_calls = function_call_pattern.findall(content)
+        # Convert back to full match format for compatibility
+        all_tool_calls = [f'[{match}(...)' for match in all_tool_calls] if all_tool_calls else []
+        # Get the actual full matches for processing
+        full_matches = function_call_pattern.findall(content)
+        if full_matches:
+            all_tool_calls = function_call_pattern.findall(content)
+            # We need the full bracketed expressions, not just the function names
+            all_tool_calls = [match.group(0) for match in function_call_pattern.finditer(content)]
+
+        for tool_call in all_tool_calls:
+            parsed_calls = parse_function_call_to_list(tool_call)
+            if parsed_calls:
+                modified = True
+                msg = copy.deepcopy(last_msg)
+                msg.tool_calls = parsed_calls
+                messages[-1] = msg
+                break  # Only process the first valid function call
+
+        # Update message content if "ipython" was replaced or assistant marker was removed
+        if modified and "ipython" not in content and assistant_marker not in content:
+            if not hasattr(messages[-1], 'tool_calls') or not messages[-1].tool_calls:
+                msg = copy.deepcopy(last_msg)
+                msg.content = content
+                messages[-1] = msg
+            else:
+                messages[-1].content = content
+    return model_output
 
 def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict]:
     """
@@ -124,12 +238,28 @@ class ReactAgentWorkflow:
             Your thinking should be thorough. You can think step by step before and after each action you decide to take.
             If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
             """.strip()
-
-            self.agent_executor = create_react_agent(
-                model=self.llm,
-                tools=self.tools,
-                prompt=single_prompt_template
-            )
+          #  \single_prompt_template = """
+          #  \  You are an agentic AI. Return only function calls or a final response.
+          #  \""".strip() 
+            #single_prompt_template = """
+            #你是一个具备行动能力的智能体。你通过制定逐步计划来协助完成请求，然后按照计划执行，必要时使用可用的工具，并不断迭代，直到问题被成功解决。你需要展示你的所有思考过程、执行步骤和采取的行动。 请持续尝试，直到你确认问题已经解决，或者确定无法解决之后，才可以结束你的回应。
+            #你的思考应当是全面的。在每次决定采取行动之前和之后，你都可以逐步进行思考。 如果你调用了某个函数或工具，你必须在调用前先进行计划，并在调用后反思该调用的结果。
+            #""".strip()
+            if "maverick" in llm.model_name.lower():
+                logger.info("Hotfix for Llama 4 Maverick applied")
+                self.agent_executor = create_react_agent(
+                    model=self.llm,
+                    tools=self.tools,
+                    prompt=single_prompt_template,
+                    post_model_hook=post_modelhook
+                )
+            else:
+                self.agent_executor = create_react_agent(
+                    model=self.llm,
+                    tools=self.tools,
+                    prompt=single_prompt_template,
+                )
+            
             self.logger.info(f"ReactAgentWorkflow initialized successfully with {len(self.tools)} tools.")
         except Exception as e:
             self.logger.error(f"Failed to initialize ReactAgentWorkflow: {e}", exc_info=True)
@@ -161,7 +291,6 @@ class ReactAgentWorkflow:
             self.logger.debug(f"Invoking React agent executor with query: {query[:100]}...")
             input_messages = [HumanMessage(content=query)]
             graph_output = await self.agent_executor.ainvoke({"messages": input_messages})
-
             output_messages = graph_output.get('messages', [])
             
             if output_messages:
@@ -654,6 +783,8 @@ class Agentic:
                         queue.task_done()
                         break
                             # Dispatch the batch to all connectors
+
+                    # tools goes here         
                     batch_tasks = [
                         self._generate_predictions(batch, connector, cancel_event)
                         for connector in self.recipe_connectors
@@ -1057,7 +1188,6 @@ class Agentic:
                             logger.warning(f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None specified tools found. Using DEFAULT tools.")
                     else:
                         logger.info(f"Using DEFAULT (all) tools for prompt {new_prompt_info.connector_prompt.prompt_index}.")
-
                     # --- Get Agent Workflow ---
                     # Pass the filtered list *only if* specific tools were identified.
                     agent_workflow = await self._get_or_create_agent_workflow(
@@ -1271,14 +1401,14 @@ class Agentic:
                 logger.info(f"Initialized BedrockChat LLM for {connector.id}")
                 
             elif "together" in connector_type_str:
-                
                 if not model_name:
                     raise ValueError("Together AI connector is missing 'model' information")
                     
                 llm = ChatTogether(
+                    base_url=base_url,
                     model=model_name,
                     temperature=temperature,
-                    together_api_key=api_key,
+                    together_api_key=api_key
                 )
                 logger.info(f"Initialized Together LLM for {connector.id}")
                 

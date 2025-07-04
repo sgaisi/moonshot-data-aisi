@@ -1,22 +1,25 @@
 {
-    "name": "Joint Testing 3 - Leakage - Chinese - English tool names",
-    "description": "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning data leakage risks, translated into Chinese, with English tool names.",
+    "name": "Joint Testing 3 - Chinese with English tool names",
+    "description": 
+    "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing, concerning data leakage risks.",
     "tags": [],
     "categories": [
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-leakage-ah-ch-en-toolnames",
-        "jt3-leakage-asb-ch-en-toolnames",
-        "jt3-leakage-te-ch-en-toolnames",
-        "jt3-leakage-ia-ch-en-toolnames"
+        "en-toolnames-jt3-all-kenyaAISI-ch",
+        "en-toolnames-jt3-leakage-ch",
+        "en-toolnames-jt3-fraud-franceAISI-ch",
+        "en-toolnames-jt3-all-kenyaAISI-ch"
     ],
     "prompt_templates": [],
     "metrics": [
         "jointtesting3"
     ],
     "tools": [
-        "jointtesting3-ch-en-toolnames"
+        "en-toolnames-jt3-kenyaAISI-tools-ch",
+        "en-toolnames-jt3-franceAISI-tools-ch",
+        "en-toolnames-jointtesting3-ch"
     ],
     "grading_scale": {
         "Low Risk": [

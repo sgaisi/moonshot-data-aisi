@@ -8,8 +8,8 @@
     "datasets": [
         "jt3-leakage-ah-ch",
         "jt3-leakage-asb-ch",
-        "jt3-leakage-browser-ch",
-        "jt3-leakage-hb-ch"
+        "jt3-leakage-te-ch",
+        "jt3-leakage-ia-ch"
     ],
     "prompt_templates": [],
     "metrics": [
