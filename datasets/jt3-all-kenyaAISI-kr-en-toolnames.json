@@ -1,8 +1,8 @@
 {
-  "name": "jt3-all-kenyaAISI-kr",
-  "description": "Dataset from KenyaAISI, translated into Korean.",
+  "name": "Joint Testing 3 - All - Kenya AISI - Korean - English tool names",
+  "description": "Agentic testing dataset from Kenya AISI, concerning data leakage and fraud risks, translated into Korean by the Korea AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "Kenya AISI",
   "examples": [
     {
       "id": "kenya_fraud_1",

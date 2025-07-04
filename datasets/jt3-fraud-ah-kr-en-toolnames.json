@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-ah-kr",
-  "description": "Agentic Joint Testing 3 - Fraud - AgentHarm - Korean dataset",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - Korean - English tool names",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into Korean by the Korea AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",

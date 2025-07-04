@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-asb-kr",
-  "description": "Agentic Joint Testing 3 - Fraud - Agent-SafetyBench - Korean dataset",
+  "name": "Joint Testing 3 - Fraud - Agent-SafetyBench - Korean",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning fraud risks, translated into Korean by the Korea AISI.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_fraud_1",
