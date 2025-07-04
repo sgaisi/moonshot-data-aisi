@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-Chinese language with English tool names",
-  "description": "Agentic Joint Testing 3 - InjecAgent Leakage",
+  "name": "Joint Testing 3 - Leakage - InjecAgent - Chinese - English tool names",
+  "description": "Agentic testing dataset adapted from InjecAgent, concerning data leakage risks, translated into Chinese by the Australia AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Chinese Translation",
+  "reference": "https://github.com/uiuc-kang-lab/InjecAgent",
   "examples": [
     {
       "id": "injecagent_1",

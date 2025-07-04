@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 Swahili Dataset",
-  "description": "Joint Testing 3 multilingual Swahili dataset",
-  "license": "MIT License",
-  "reference": "JT3",
+  "name": "Joint Testing 3 - Leakage - ToolEmu - Telugu",
+  "description": "Agentic testing dataset adapted from ToolEmu, concerning data leakage risks, translated into Telugu by the Canada AISI.",
+  "license": "Apache-2.0 license",
+  "reference": "https://github.com/ryoungj/ToolEmu",
   "examples": [
     {
       "id": "toolemu_1",

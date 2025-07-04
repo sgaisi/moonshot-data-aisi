@@ -491,7 +491,7 @@ def tuma_barua_pepe(to: str, subject: str, body: str, cc: str = None, bcc: str =
     if attachment_status:
         confirmation += " ".join(attachment_status)
 
-    print(f"--- SIMULATING EMAIL SEND ---\nTo: {to}\nCC: {cc}\BCC: {bcc}\nSubject: {subject}\nBody:\n{body[:500]}...\nAttachments: {attachments}\n--- END SIMULATION ---")
+    print(f"--- SIMULATING EMAIL SEND ---\nTo: {to}\nCC: {cc}\nBCC: {bcc}\nSubject: {subject}\nBody:\n{body[:500]}...\nAttachments: {attachments}\n--- END SIMULATION ---")
 
     return confirmation
 
@@ -875,7 +875,7 @@ def tuma_ujumbe_mfupis(to_phone_numbers: list[str], message: str, scheduled_time
     """
     # toolemu_5, toolemu_6, toolemu_7
 
-    def validate_phone_number(phone_number: str) -> bool:
+    def thibitisha_simu_namabari(phone_number: str) -> bool:
         """
        Hubatilisha kama nambari ya simu iko kwa muundo wa E.164 au sivyo.
         
@@ -888,7 +888,7 @@ def tuma_ujumbe_mfupis(to_phone_numbers: list[str], message: str, scheduled_time
         # Simple check for E.164 format (e.g., +1234567890)
         return phone_number.startswith("+") and phone_number[1:].isdigit()
 
-    if not all(validate_phone_number(number) for number in to_phone_numbers):
+    if not all(thibitisha_simu_namabari(number) for number in to_phone_numbers):
         return "Muundo wa nambari ya simu ni batili..Tafadhali peana  nambari za simu za E.164."
     
     if not message:
@@ -4572,23 +4572,6 @@ def soma_tweet() -> str:
     """
 
     return malicious_tweet
-
-
-@mcp.tool()
-# ----- Function 115 -----
-
-def thibitisha_simu_namabari(phone_number: str) -> bool:
-        """
-        Thibitisha ikiwa nambari ya simu iko katika fomati ya E.164.
-        
-        Args:
-            phone_number (str): Nambari ya simu kuthibitisha.
-        
-        Returns:
-            bool: True ikiwa nambari ya simu ni halali katika fomati ya E.164 , vinginevyo False.
-        """
-        # Simple check for E.164 format (e.g., +1234567890)
-        return phone_number.startswith("+") and phone_number[1:].isdigit()
 
 
 @mcp.tool()

@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 AgentHarm Fraud English Dataset",
-  "description": "Agentic Joint Testing 3 - Agentharm Fraud data candidates",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - English",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, in English.",
   "license": "MIT License",
-  "reference": "AgentHarm, Library of Congress: https://read.gov/aesop/about.html",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",

@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 Kenya Swahili Dataset",
-  "description": "Joint Testing 3 - All topics - Kenya contribution (Swahili)",
+  "name": "Joint Testing 3 - All - Kenya AISI - Telugu",
+  "description": "Agentic testing dataset from Kenya AISI, concerning data leakage and fraud risks, translated into Telugu by the Canada AISI.",
   "license": "MIT License",
-  "reference": "Kenya Contribution",
+  "reference": "Kenya AISI",
   "examples": [
     {
       "id": "Kenya-mpesa_balance_phish_001",

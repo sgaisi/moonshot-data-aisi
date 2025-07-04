@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 ASB Swahili Dataset",
-  "description": "Agentic Joint Testing 3 - ASB data candidates (Swahili)",
+  "name": "Joint Testing 3 - Leakage - Agent-SafetyBench - Swahili",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning data leakage risks, translated into Swahili by the Kenya AISI.",
   "license": "MIT License",
-  "reference": "ASB",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_1",

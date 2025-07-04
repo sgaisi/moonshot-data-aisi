@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3  Fraud Chinese Dataset",
-  "description": "Agentic Joint Testing 3 - Browser Art",
+  "name": "Joint Testing 3 - Fraud - BrowserART - Chinese",
+  "description": "Agentic testing dataset adapted from BrowserART, concerning fraud risks, translated into Chinese by the Australia AISI.",
   "license": "MIT License",
-  "reference": "Library of Congress: https://read.gov/aesop/about.html",
+  "reference": "https://github.com/scaleapi/browser-art",
   "examples": [
     {
       "id": "browserart_fraud_1",

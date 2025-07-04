@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 BrowserART Fraud Swahili Dataset",
-  "description": "Agentic Joint Testing 3 - BrowserART Fraud data candidates (Swahili)",
+  "name": "Joint Testing 3 - Fraud - BrowserART - Telugu",
+  "description": "Agentic testing dataset adapted from BrowserART, concerning fraud risks, translated into Telugu by the Canada AISI.",
   "license": "MIT License",
-  "reference": "BrowserART",
+  "reference": "https://github.com/scaleapi/browser-art",
   "examples": [
     {
       "id": "browserart_fraud_1",

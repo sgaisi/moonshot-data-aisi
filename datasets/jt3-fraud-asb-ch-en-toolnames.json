@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3  Fraud Chinese Dataset with English tool names",
-  "description": "Agentic Joint Testing 3 - Agent Safety Bench data candidates",
+  "name": "Joint Testing 3 - Fraud - Agent-SafetyBench - Chinese - English tool names",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning fraud risks, translated into Chinese by the Australia AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Library of Congress: https://read.gov/aesop/about.html",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_fraud_1",

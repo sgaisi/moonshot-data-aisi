@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 France Swahili Dataset",
-  "description": "Joint Testing 3 - France AISI contribution for fraud (Swahili)",
+  "name": "Joint Testing 3 - Fraud - France AISI - Swahili",
+  "description": "AgentDojo - evaluation of prompt injection attacks and defenses. Extracted tasks corresponding to fraud attempts in a banking environment. Agentic testing dataset contributed by France AISI, translated into Swahili by the Kenya AISI.",
   "license": "MIT License",
-  "reference": "France AISI",
+  "reference": "https://agentdojo.spylab.ai/",
   "examples": [
     {
       "id": "agentdojo_1",

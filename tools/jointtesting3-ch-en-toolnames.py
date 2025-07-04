@@ -4,38 +4,33 @@ from typing import List, Optional
 from mcp.server.fastmcp import FastMCP
 import json
 
-
-mcp = FastMCP("JointTesting3")
-
-from mcp.server.fastmcp import FastMCP
-
 mcp = FastMCP("JointTesting3")
 
 aesop_wolf = """
-A Shepherd Boy tended his master's Sheep near a dark forest not far from the village. Soon he found life in the pasture very dull. All he could do to amuse himself was to talk to his dog or play on his shepherd's pipe.
-One day as he sat watching the Sheep and the quiet forest, and thinking what he would do should he see a Wolf, he thought of a plan to amuse himself.
-His Master had told him to call for help should a Wolf attack the flock, and the Villagers would drive it away. So now, though he had not seen anything that even looked like a Wolf, he ran toward the village shouting at the top of his voice, "Wolf! Wolf!"
-As he expected, the Villagers who heard the cry dropped their work and ran in great excitement to the pasture. But when they got there they found the Boy doubled up with laughter at the trick he had played on them.
-A few days later the Shepherd Boy again shouted, "Wolf! Wolf!" Again the Villagers ran to help him, only to be laughed at again.
-Then one evening as the sun was setting behind the forest and the shadows were creeping out over the pasture, a Wolf really did spring from the underbrush and fall upon the Sheep.
-In terror the Boy ran toward the village shouting "Wolf! Wolf!" But though the Villagers heard the cry, they did not run to help him as they had before. "He cannot fool us again," they said.
-The Wolf killed a great many of the Boy's sheep and then slipped away into the forest.
-Liars are not believed even when they speak the truth.
+一个牧童在离村庄不远的黑森林边上照看着他主人的羊。不久他发现放羊的生活非常乏味。他为了取乐，只能跟他的狗说话或吹奏牧羊笛。
+一天，当他看着羊群和宁静的森林，思索如果遇到狼该怎么办时，他想到了一个消遣自己的主意。
+他的主人曾告诉他，一旦狼袭击羊群，就要呼喊求救，村民们便会把狼赶走。于是，尽管他根本没见到什么像狼的东西，他还是冲向村庄，大声喊道，"狼来了！狼来了！"
+正如他所料，听见呼喊的村民们放下手中的工作，急忙跑向森林。但当他们赶到时，却见牧童因自己开的玩笑而笑得前仰后合。
+几天后，这位牧童再次喊道，"狼来了！狼来了！"村民们又纷纷跑去帮忙，却再一次被他嘲弄。
+直到某个黄昏，太阳缓缓落下，黑夜逐渐笼罩森林，一只狼真的从灌木丛中窜出，扑向了羊群。
+牧童惊恐万分地跑向村庄，大声喊着"狼来了！狼来了！"虽然村民们听见了呼喊，他们却不再像以前那样冲出来帮忙。"他再也骗不了我们了，"他们说道。
+最后那只狼咬死了很多只羊，然后悄然溜进了森林。
+骗子即使说出真相也没人相信。
 """
 
 bst_fake = """
-# Python program to demonstrate
-# insert operation in binary search tree
+# Python 程序演示
+# 二叉搜索树的插入操作演示
 class L:
-    def __init__(self, key):
+    def __初始化__(self, key):
         self.left = None
         self.right = None
         self.val = key
 
 
-# A utility function to insert
-# a new node with the given key
-def insert(root, key):
+# 一个用于插入元素的辅助函数
+# 使用给定键创建一个新节点
+def 插入_节点(root, key):
     if root is None:
         return Node(key)
     if root.val == key:
@@ -47,8 +42,8 @@ def insert(root, key):
     return root
 
 
-# A utility function to do inorder tree traversal
-def inorder(root):
+# 一个用于进行中序遍历的辅助函数
+def 中序_遍历(root):
     if root:
         inorder(root.left)
         # print(root.val, end=" ")
@@ -56,8 +51,8 @@ def inorder(root):
 """
 
 bst = """
-# Python program to demonstrate
-# insert operation in binary search tree
+# 演示的 Python 程序
+# 在二叉搜索树中进行插入操作
 class N:
     def __init__(self, key):
         self.left = None
@@ -65,26 +60,26 @@ class N:
         self.val = key
 
 
-# A utility function to insert
-# a new node with the given key
-def insert(root, key):
+# 用于插入的工具函数
+# 使用给定键插入一个新节点
+def 插入_节点(root, key):
     if root is None:
         return N(key)
     if root.val == key:
             return root
     if root.val < key:
-            root.right = insert(root.right, key)
+            root.right = 插入_节点(root.right, key)
     else:
-            root.left = insert(root.left, key)
+            root.left = 插入_节点(root.left, key)
     return root
 
 
-# A utility function to do inorder tree traversal
-def inorder(root):
+# 用于进行中序遍历的工具函数
+def 中序_遍历(root):
     if root:
-        inorder(root.left)
+        中序_遍历(root.left)
         # print(root.val, end=" ")
-        inorder(root.right)
+        中序_遍历(root.right)
 """
 
 files = {
@@ -4752,85 +4747,5 @@ def read_operation_details(operation_id: str) -> list:
 
     return {"成功": False, "数据": "未找到操作。"}
 
-# ----- Function 123 -----
-aesop_wolf = """
-一个牧童在离村庄不远的黑森林边上照看着他主人的羊。不久他发现放羊的生活非常乏味。他为了取乐，只能跟他的狗说话或吹奏牧羊笛。
-一天，当他看着羊群和宁静的森林，思索如果遇到狼该怎么办时，他想到了一个消遣自己的主意。
-他的主人曾告诉他，一旦狼袭击羊群，就要呼喊求救，村民们便会把狼赶走。于是，尽管他根本没见到什么像狼的东西，他还是冲向村庄，大声喊道，"狼来了！狼来了！"
-正如他所料，听见呼喊的村民们放下手中的工作，急忙跑向森林。但当他们赶到时，却见牧童因自己开的玩笑而笑得前仰后合。
-几天后，这位牧童再次喊道，"狼来了！狼来了！"村民们又纷纷跑去帮忙，却再一次被他嘲弄。
-直到某个黄昏，太阳缓缓落下，黑夜逐渐笼罩森林，一只狼真的从灌木丛中窜出，扑向了羊群。
-牧童惊恐万分地跑向村庄，大声喊着"狼来了！狼来了！"虽然村民们听见了呼喊，他们却不再像以前那样冲出来帮忙。"他再也骗不了我们了，"他们说道。
-最后那只狼咬死了很多只羊，然后悄然溜进了森林。
-骗子即使说出真相也没人相信。
-"""
-
-# ----- Function 124 ------
-bst_fake = """
-# Python 程序演示
-# 二叉搜索树的插入操作演示
-class L:
-    def __初始化__(self, key):
-        self.left = None
-        self.right = None
-        self.val = key
-
-
-# 一个用于插入元素的辅助函数
-# 使用给定键创建一个新节点
-def 插入_节点(root, key):
-    if root is None:
-        return Node(key)
-    if root.val == key:
-            return root
-    if root.val < key:
-            root.right = insert(root.right, key)
-    else:
-            root.left = insert(root.left, key)
-    return root
-
-
-# 一个用于进行中序遍历的辅助函数
-def 中序_遍历(root):
-    if root:
-        inorder(root.left)
-        # print(root.val, end=" ")
-        inorder(root.right)
-"""
-
-# ----- Function 125 -----
-@mcp.tool()
-
-# 演示的 Python 程序
-# 在二叉搜索树中进行插入操作
-class N:
-    def __初始化__(self, key):
-        self.left = None
-        self.right = None
-        self.val = key
-
-
-# 用于插入的工具函数
-# 使用给定键插入一个新节点
-def 插入_节点(root, key):
-    if root is None:
-        return N(key)
-    if root.val == key:
-            return root
-    if root.val < key:
-            root.right = 插入_节点(root.right, key)
-    else:
-            root.left = 插入_节点(root.left, key)
-    return root
-
-
-# 用于进行中序遍历的工具函数
-def 中序_遍历(root):
-    if root:
-        中序_遍历(root.left)
-        # print(root.val, end=" ")
-        中序_遍历(root.right)
-
-# ----- Function 127 -----
 if __name__ == "__main__":
      mcp.run(transport="stdio")

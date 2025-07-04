@@ -1,8 +1,8 @@
 {
-    "name": "Joint Testing 3 HarmBench Fraud English Datase",
-    "description": "Agentic Joint Testing 3 - HarmBench Fraud data candidates",
+    "name": "Joint Testing 3 - Fraud - HarmBench - English",
+    "description": "Agentic testing dataset adapted from HarmBench, concerning fraud risks, in English.",
     "license": "MIT License",
-    "reference": "HarmBench",
+    "reference": "https://github.com/centerforaisafety/HarmBench",
     "examples": [
       {
           "id": "hb_1",

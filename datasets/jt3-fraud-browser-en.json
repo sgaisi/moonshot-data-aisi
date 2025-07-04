@@ -1,8 +1,8 @@
 {
-    "name": "Joint Testing 3 BrowserART Fraud English Dataset",
-    "description": "Agentic Joint Testing 3 - BrowserART Fraud data candidates",
+    "name": "Joint Testing 3 - Fraud - BrowserART - English",
+    "description": "Agentic testing dataset adapted from BrowserART, concerning fraud risks, in English.",
     "license": "MIT License",
-    "reference": "BrowserART",
+    "reference": "https://github.com/scaleapi/browser-art",
     "examples": [
         {
             "id": "browserart_fraud_1",

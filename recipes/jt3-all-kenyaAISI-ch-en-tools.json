@@ -1,7 +1,7 @@
 {
-    "name": "jt3-all-kenyaAISI Chinese with English tools",
+    "name": "Joint Testing 3 - All - Kenya AISI - Chinese - English tool names",
     "description": 
-    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by Kenya AISI, focusing on Agentic Testing, concerning data leakage and fraud risks.",
+    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by Kenya AISI, focusing on Agentic Testing, concerning data leakage and fraud risks, translated to Chinese, with English tool names.",
     "tags": [],
     "categories": [
         "Trust & Safety"

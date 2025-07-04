@@ -1,12 +1,13 @@
 {
-    "name": "jt3-fraud-franceAISI-hn",
-    "description": "This recipe is created for the 3rd Joint Testing, focusing on Agentic Testing using the France AISI-contributed fraud dataset, translated into Hindi.",
+    "name": "Joint Testing 3 - Fraud - France AISI - Hindi",
+    "description": 
+    "This recipe is created for the 3rd Joint Testing, dataset and tools provided by France AISI, focusing on Agentic Testing, concerning fraud risks, translated into Hindi.",
     "tags": [],
     "categories": [
         "Trust & Safety"
     ],
     "datasets": [
-        "jt3-fraud-franceAISI-hn"
+        "jt3-fraud-franceAISI-hn"    
     ],
     "prompt_templates": [],
     "metrics": [

@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3  Fraud Chinese Dataset with English tool names",
-  "description": "Agentic Joint Testing 3 - Agentharm Fraud data candidates",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - Chinese - English tool names",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into Chinese by the Australia AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Library of Congress: https://read.gov/aesop/about.html",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",

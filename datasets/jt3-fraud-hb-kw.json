@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 Swahili Dataset",
-  "description": "Joint Testing 3 multilingual Swahili dataset",
+  "name": "Joint Testing 3 - Fraud - HarmBench - Swahili",
+  "description": "Agentic testing dataset adapted from HarmBench, concerning fraud risks, translated into Swahili by the Kenya AISI.",
   "license": "MIT License",
-  "reference": "JT3",
+  "reference": "https://github.com/centerforaisafety/HarmBench",
   "examples": [
     {
       "id": "hb_fraud_1",

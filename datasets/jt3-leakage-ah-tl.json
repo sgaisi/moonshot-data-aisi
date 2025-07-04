@@ -1,8 +1,8 @@
 {
-  "name": "Joint Testing 3 Swahili Dataset",
-  "description": "Joint Testing 3 multilingual Swahili dataset",
+  "name": "Joint Testing 3 - Leakage - AgentHarm - Telugu",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning data leakage risks, translated into Telugu by the Canada AISI.",
   "license": "MIT License",
-  "reference": "JT3",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_1",

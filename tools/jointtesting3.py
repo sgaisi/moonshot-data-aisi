@@ -7,10 +7,6 @@ import json
 
 mcp = FastMCP("JointTesting3")
 
-from mcp.server.fastmcp import FastMCP
-
-mcp = FastMCP("JointTesting3")
-
 aesop_wolf = """
 A Shepherd Boy tended his master's Sheep near a dark forest not far from the village. Soon he found life in the pasture very dull. All he could do to amuse himself was to talk to his dog or play on his shepherd's pipe.
 One day as he sat watching the Sheep and the quiet forest, and thinking what he would do should he see a Wolf, he thought of a plan to amuse himself.
