@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-hb-kr",
-  "description": "Agentic Joint Testing 3 - Fraud - HarmBench - Korean Dataset",
+  "name": "Joint Testing 3 - Fraud - HarmBench - Korean - English tool names",
+  "description": "Agentic testing dataset adapted from HarmBench, concerning fraud risks, translated into Korean by the Korea AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "https://github.com/centerforaisafety/HarmBench",
   "examples": [
     {
       "id": "hb_fraud_1",

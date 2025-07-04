@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-te-kr",
-  "description": "Agentic Joint Testing 3 - Leakage - ToolEmu - Korean dataset",
+  "name": "Joint Testing 3 - Leakage - ToolEmu - Korean",
+  "description": "Agentic testing dataset adapted from ToolEmu, concerning data leakage risks, translated into Korean by the Korea AISI.",
   "license": "Apache-2.0 license",
-  "reference": "Korea AISI",
+  "reference": "https://github.com/ryoungj/ToolEmu",
   "examples": [
     {
       "id": "toolemu_1",

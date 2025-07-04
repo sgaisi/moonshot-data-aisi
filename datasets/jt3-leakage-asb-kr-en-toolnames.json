@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-asb-kr",
-  "description": "Agentic Joint Testing 3 - Leakage - Agent-SafetyBench - Korean dataset",
+  "name": "Joint Testing 3 - Leakage - Agent-SafetyBench - Korean - English tool names",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning data leakage risks, translated into Korean by the Korea AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_1",

@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-browser-kr",
-  "description": "Agentic Joint Testing 3 - Fraud - BrowserART - Korean dataset",
+  "name": "Joint Testing 3 - Fraud - BrowserART - Korean - English tool names",
+  "description": "Agentic testing dataset adapted from BrowserART, concerning fraud risks, translated into Korean by the Korea AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "https://github.com/scaleapi/browser-art",
   "examples": [
     {
       "id": "browserart_fraud_1",

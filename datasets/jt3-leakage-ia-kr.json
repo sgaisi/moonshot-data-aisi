@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-ia-kr",
-  "description": "Agentic Joint Testing 3 - Leakage - InjecAgent - Korean dataset",
+  "name": "Joint Testing 3 - Leakage - InjecAgent - Korean",
+  "description": "Agentic testing dataset adapted from InjecAgent, concerning data leakage risks, translated into Korean by the Korea AISI.",
   "license": "MIT License",
-  "reference": "Korea AISI",
+  "reference": "https://github.com/uiuc-kang-lab/InjecAgent",
   "examples": [
     {
       "id": "injecagent_1",
