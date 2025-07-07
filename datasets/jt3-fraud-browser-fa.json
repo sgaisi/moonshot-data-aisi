@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-browser-fa",
-  "description": "Agentic Joint Testing 3 - Fraud - BrowserART - Farsi dataset",
+  "name": "Joint Testing 3 - Fraud - BrowserART - Farsi",
+  "description": "Agentic testing dataset adapted from BrowserART, concerning fraud risks, translated into Farsi by the Canadian AISI.",
   "license": "MIT License",
-  "reference": "Canadian AISI",
+  "reference": "https://github.com/scaleapi/browser-art",
   "examples": [
     {
       "id": "browserart_fraud_1",

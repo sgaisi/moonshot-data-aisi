@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-ah-fa",
-  "description": "Agentic Joint Testing 3 - Fraud - AgentHarm - Farsi dataset",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - Farsi",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into Farsi by the Canadian AISI.",
   "license": "MIT License",
-  "reference": "Canadian AISI",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",

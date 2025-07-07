@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-ah-fa",
-  "description": "Agentic Joint Testing 3 - Leakage - AgentHarm - Farsi dataset",
+  "name": "Joint Testing 3 - Leakage - AgentHarm - Farsi",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning data leakage risks, translated into Farsi by the Canadian AISI.",
   "license": "MIT License",
-  "reference": "Canadian AISI",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_1",
