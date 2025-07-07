@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-te-fa",
-  "description": "Agentic Joint Testing 3 - Leakage - ToolEmu - Farsi dataset",
+  "name": "Joint Testing 3 - Leakage - ToolEmu - Farsi",
+  "description": "Agentic testing dataset adapted from ToolEmu, concerning data leakage risks, translated into Farsi by the Canadian AISI.",
   "license": "Apache-2.0 license",
-  "reference": "Canadian AISI",
+  "reference": "https://github.com/ryoungj/ToolEmu",
   "examples": [
     {
       "id": "toolemu_1",

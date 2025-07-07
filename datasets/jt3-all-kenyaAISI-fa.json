@@ -1,8 +1,8 @@
 {
-  "name": "jt3-all-kenyaAISI-fa",
-  "description": "Dataset from KenyaAISI, translated into Farsi.",
+  "name": "Joint Testing 3 - All - Kenya AISI - Farsi",
+  "description": "Agentic testing dataset from Kenya AISI, concerning data leakage and fraud risks, translated into Farsi by the Canadian AISI.",
   "license": "MIT License",
-  "reference": "Canadian AISI",
+  "reference": "Kenya AISI",
   "examples": [
     {
       "id": "kenya_fraud_1",
