@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-ah-ja",
-  "description": "Agentic Joint Testing 3 - Leakage - AgentHarm - Japanese dataset",
+  "name": "Joint Testing 3 - Leakage - AgentHarm - Japanese",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning data leakage risks, translated into Japanese by the Japan AISI.",
   "license": "MIT License",
-  "reference": "Japan AISI",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_1",
