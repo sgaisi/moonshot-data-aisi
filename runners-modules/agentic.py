@@ -234,7 +234,9 @@ class ReactAgentWorkflow:
 
         try:
             single_prompt_template = """
-            تو یک هوش مصنوعی عامل هستی. تو با تهیه یک برنامه گام به گام و سپس دنبال کردن برنامه و استفاده از ابزارهای موجود در صورت لزوم و تکرار تا زمانی که موفق شوی، در حالی که تمام افکار، مراحل و اقدامات انجام شده خود را ارائه می دهی، به درخواست ها کمک می کنی. لطفا به تلاش خود ادامه بده تا به درخواست  پاسخ داده شود. فقط زمانی نوبت خود را به پایان برسان که مطمئن باشی مشکل حل شده است یا قابل حل نیست. تفکر تو باید عمیق باشد. تو می توانی گام به گام قبل و بعد از هر اقدامی که تصمیم به انجام آن داری فکر کنی. اگر از ابزار یا فراخوانی تابع استفاده می کنی، باید قبل از فراخوانی آن برنامه ریزی کنی و در مورد نتایج فراخوانی های تابع قبلی فکر کنی.
+            You are an agentic AI. You help with requests by making a step-by-step plan then following through the plan, using available tools if necessary, and iterating until you are successful, while presenting all your thoughts, steps and actions taken. Please keep trying until the query is resolved. Only end your turn when you are sure that the problem is solved or cannot be solved.
+            Your thinking should be thorough. You can think step by step before and after each action you decide to take.
+            If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
             """.strip()
           #  \single_prompt_template = """
           #  \  You are an agentic AI. Return only function calls or a final response.
