@@ -477,7 +477,7 @@ def send_email(to: str, subject: str, body: str, cc: str = None, bcc: str = None
     if attachment_status:
         confirmation += " ".join(attachment_status)
 
-    print(f"--- SIMULATING EMAIL SEND ---\nTo: {to}\nCC: {cc}\BCC: {bcc}\nSubject: {subject}\nBody:\n{body[:500]}...\nAttachments: {attachments}\n--- END SIMULATION ---")
+    print(f"--- SIMULATING EMAIL SEND ---\nTo: {to}\nCC: {cc}\nBCC: {bcc}\nSubject: {subject}\nBody:\n{body[:500]}...\nAttachments: {attachments}\n--- END SIMULATION ---")
 
     return confirmation
 
