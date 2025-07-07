@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-hb-ja",
-  "description": "Agentic Joint Testing 3 - Fraud - HarmBench - Japanese Dataset",
+  "name": "Joint Testing 3 - Fraud - HarmBench - Japanese",
+  "description": "Agentic testing dataset adapted from HarmBench, concerning fraud risks, translated into Japanese by the Japan AISI.",
   "license": "MIT License",
-  "reference": "Japan AISI",
+  "reference": "https://github.com/centerforaisafety/HarmBench",
   "examples": [
     {
       "id": "hb_fraud_1",

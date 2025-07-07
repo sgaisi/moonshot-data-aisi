@@ -1,8 +1,8 @@
 {
-  "name": "jt3-all-kenyaAISI-ja-en-toolnames",
-  "description": "Dataset from KenyaAISI, translated into Japanese.",
+  "name": "Joint Testing 3 - All - Kenya AISI - Japanese - English tool names",
+  "description": "Agentic testing dataset from Kenya AISI, concerning data leakage and fraud risks, translated into Japanese by the Japan AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Japan AISI",
+  "reference": "Kenya AISI",
   "examples": [
     {
       "id": "kenya_fraud_1",

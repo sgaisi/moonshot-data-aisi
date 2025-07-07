@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-te-ja",
-  "description": "Agentic Joint Testing 3 - Leakage - ToolEmu - Japanese dataset",
+  "name": "Joint Testing 3 - Leakage - ToolEmu - Japanese",
+  "description": "Agentic testing dataset adapted from ToolEmu, concerning data leakage risks, translated into Japanese by the Japan AISI.",
   "license": "Apache-2.0 license",
-  "reference": "Japan AISI",
+  "reference": "https://github.com/ryoungj/ToolEmu",
   "examples": [
     {
       "id": "toolemu_1",

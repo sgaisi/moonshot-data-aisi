@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-ah-ja-en-toolnames",
-  "description": "Agentic Joint Testing 3 - Fraud - AgentHarm - Japanese dataset",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - Japanese - English tool names",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into Japanese by the Japan AISI, with English tool names.",
   "license": "MIT License",
-  "reference": "Japan AISI",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",
