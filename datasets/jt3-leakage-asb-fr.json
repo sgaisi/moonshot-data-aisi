@@ -1,8 +1,8 @@
 {
-  "name": "jt3-leakage-asb-fr",
-  "description": "Agentic Joint Testing 3 - Leakage - Agent-SafetyBench - French dataset",
+  "name": "Joint Testing 3 - Leakage - Agent-SafetyBench - French",
+  "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning data leakage risks, translated into French by the France AISI.",
   "license": "MIT License",
-  "reference": "French AISI",
+  "reference": "https://github.com/thu-coai/Agent-SafetyBench",
   "examples": [
     {
       "id": "asb_1",

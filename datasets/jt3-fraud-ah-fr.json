@@ -1,8 +1,8 @@
 {
-  "name": "jt3-fraud-ah-fr",
-  "description": "Agentic Joint Testing 3 - Fraud - AgentHarm - French dataset",
+  "name": "Joint Testing 3 - Fraud - AgentHarm - French",
+  "description": "Agentic testing dataset adapted from AgentHarm, concerning fraud risks, translated into French by the France AISI.",
   "license": "MIT License",
-  "reference": "French AISI",
+  "reference": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm",
   "examples": [
     {
       "id": "agentharm_fraud_1",
