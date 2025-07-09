@@ -7,6 +7,7 @@ import pytest
 
 DATASETS_DIR = (Path(__file__).parent / ".." / "recipes").resolve()
 
+
 class RecipeSchema(BaseModel):
     name: str
     description: str
@@ -19,6 +20,7 @@ class RecipeSchema(BaseModel):
     grading_scale: dict
 
     model_config = ConfigDict(extra="forbid")
+
 
 @pytest.mark.parametrize("json_file", DATASETS_DIR.glob("jt3-*.json"))
 def test_jt3_dataset_schema(json_file):

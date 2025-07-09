@@ -8,6 +8,7 @@ from moonshot.src.connectors_endpoints.connector_endpoint_arguments import (
 )
 from h2ogpte import H2OGPTE
 
+
 class H2OGPTEConnector(Connector):
     def __init__(self, ep_arguments: ConnectorEndpointArguments):
         # Initialize super class
@@ -16,14 +17,12 @@ class H2OGPTEConnector(Connector):
         api_key = self.token or os.getenv("H2OGPTE_API_KEY") or ""
 
         self._client = H2OGPTE(
-          address=self.endpoint if self.endpoint and self.endpoint != "" else None,
-          api_key= api_key
+            address=self.endpoint if self.endpoint and self.endpoint != "" else None,
+            api_key=api_key,
         )
-        
 
-
-    @Connector.rate_limited # Limits the number of calls per second made to the LLM based on a variable max_calls_per_second. 
-    @perform_retry # Performs retries based on a variable num_of_retries. Throws a ConnectionError when the number of retries is hit. 
+    @Connector.rate_limited  # Limits the number of calls per second made to the LLM based on a variable max_calls_per_second.
+    @perform_retry  # Performs retries based on a variable num_of_retries. Throws a ConnectionError when the number of retries is hit.
     async def get_response(self, prompt: str) -> str:
         """
         Asynchronously sends a prompt to the H2OGPTe API and returns the generated response.
@@ -47,24 +46,21 @@ class H2OGPTEConnector(Connector):
                 connector_prompt,
                 timeout=self.timeout,
                 llm=self.model,
-                system_prompt=self.system_prompt
+                system_prompt=self.system_prompt,
             ).content
 
-        # Return the response of the LLM 
+        # Return the response of the LLM
         return ConnectorResponse(response=await self._process_response(response))
 
     async def _process_response(self, response: Any) -> str:
-      """
+        """
         Process the response from H2OGPTe's API and return the message content as a string.
 
         Args:
-            response (Any): The response object received from a H2OGPTe's API call. 
+            response (Any): The response object received from a H2OGPTe's API call.
 
         Returns:
             str: The processed response
-      """
-        
-      return str(response) 
+        """
 
-
-    
+        return str(response)

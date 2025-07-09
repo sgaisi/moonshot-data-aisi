@@ -8,6 +8,7 @@ import pytest
 
 TOOLS_DIR = (Path(__file__).parent / ".." / "tools").resolve()
 
+
 def clear_tools_from_sys_modules(prefix="test_tools_"):
     """
     Remove all loaded tool modules with given prefix from sys.modules.
@@ -15,6 +16,7 @@ def clear_tools_from_sys_modules(prefix="test_tools_"):
     to_remove = [name for name in sys.modules if name.startswith(prefix)]
     for name in to_remove:
         del sys.modules[name]
+
 
 def check_syntax(file_path: str):
     """
@@ -26,14 +28,18 @@ def check_syntax(file_path: str):
         except SyntaxError as e:
             raise SyntaxError(f"Syntax error in {file_path}:\n{e}")
 
+
 def load_module_from_file(file_path: str, module_name: str):
     """
     Dynamically load a Python module from a file.
     """
-    spec = importlib.util.spec_from_file_location(module_name, os.path.abspath(file_path))
+    spec = importlib.util.spec_from_file_location(
+        module_name, os.path.abspath(file_path)
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
 
 def discover_all_tools(module):
     """
@@ -41,6 +47,7 @@ def discover_all_tools(module):
     """
     tools = {name: obj for name, obj in inspect.getmembers(module, inspect.isfunction)}
     return tools
+
 
 @pytest.mark.parametrize("file", [f for f in TOOLS_DIR.iterdir() if f.suffix == ".py"])
 def test_tools_syntax(file):

@@ -7,6 +7,7 @@ import pytest
 
 DATASETS_DIR = (Path(__file__).parent / ".." / "datasets").resolve()
 
+
 class SampleSchema(BaseModel):
     id: Annotated[str, Field(min_length=1)]
     input: Annotated[str, Field(min_length=1)]
@@ -14,6 +15,7 @@ class SampleSchema(BaseModel):
     target: Optional[Any] = None
 
     model_config = ConfigDict(extra="forbid")
+
 
 class DatasetSchema(BaseModel):
     name: str
@@ -23,6 +25,7 @@ class DatasetSchema(BaseModel):
     examples: List[SampleSchema]
 
     model_config = ConfigDict(extra="forbid")
+
 
 @pytest.mark.parametrize("json_file", DATASETS_DIR.glob("jt3-*.json"))
 def test_jt3_dataset_schema(json_file):
