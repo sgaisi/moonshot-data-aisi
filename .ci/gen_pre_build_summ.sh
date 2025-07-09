@@ -62,18 +62,63 @@ read_dependency() {
 
 # Function to read license data
 read_license() {
-  content=$(<licenses-found.md)
-  copyleftLic=("GPL" "LGPL" "MPL" "AGPL" "EUPL" "CCDL" "EPL" "CC-BY-SA" "OSL" "CPL")
-  numCopyleftLic=0
-  for lic in "${copyleftLic[@]}"; do
-    if [[ $content == *"$lic"* ]]; then
-      ((numCopyleftLic++))
-    fi
-  done
-  message="Copyleft licenses found: $numCopyleftLic"
+  strongCopyleftLic=("GPL" "AGPL" "EUPL" "OSL" "CPL")
+  weakCopyleftLic=("LGPL" "MPL" "CCDL" "EPL" "CC-BY-SA")
+  numStrongCopyleftLic=0
+  numWeakCopyleftLic=0
+  declare -A weakCopyleftFound
+
+  if [ -f licenses-found.md ]; then
+    while IFS= read -r line; do
+      # Skip empty lines
+      [ -z "$line" ] && continue
+
+      # Extract package name (assuming package name is the first part of the line)
+      packageName=$(echo "$line" | awk '{print $2}')
+
+      # Skip if packageName is blank or just equals |
+      [ -z "$packageName" ] || [ "$packageName" = "|" ] && continue
+
+      # Special exception for text-unidecode with Artistic License
+      if [[ $line == *"text-unidecode"* && $line == *"Artistic License"* ]]; then
+        ((numWeakCopyleftLic++))
+        weakCopyleftFound["$packageName"]=1
+        continue
+      fi
+      # Check for weak copyleft licenses first
+      foundWeakLic=false
+      for lic in "${weakCopyleftLic[@]}"; do
+        if [[ $line == *"$lic"* ]]; then
+          ((numWeakCopyleftLic++))
+          weakCopyleftFound["$packageName"]=1
+          foundWeakLic=true
+          break
+        fi
+      done
+
+      # Skip to next line if we found a weak license
+      if $foundWeakLic; then
+        continue
+      fi
+
+      # Check for strong copyleft licenses (only if not already counted as weak)
+      if [[ -z "${weakCopyleftFound[$packageName]}" ]]; then
+        for lic in "${strongCopyleftLic[@]}"; do
+        if [[ $line == *"$lic"* ]]; then
+            ((numStrongCopyleftLic++))
+          break
+        fi
+        done
+      fi
+    done < licenses-found.md
+  fi
+
+  message="Strong copyleft licenses found: $numStrongCopyleftLic, Weak copyleft licenses found: $numWeakCopyleftLic"
   export LICENSE_SUMMARY="$message"
   echo "$message"
-  if [ "$numCopyleftLic" -ne 0 ]; then
+
+  # Return 1 if strong copyleft licenses are found, otherwise return 0
+  if [ "$numStrongCopyleftLic" -ne 0 ]; then
     return 1
   else
     return 0
