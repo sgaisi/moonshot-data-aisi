@@ -4,6 +4,8 @@ import asyncio
 import copy
 import json
 import random
+import regex
+import string
 import time
 from itertools import groupby
 from operator import attrgetter
@@ -42,8 +44,6 @@ from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 
 
-import traceback
-
 # Create a logger for this module
 logger = configure_logger(__name__)
 
@@ -59,15 +59,7 @@ def get_tools(tool_loc: list[str]):
     return server_params
 
 
-import re
-import random
-import string
-
 # --- Unicode-aware parser for function calls ---
-# Uses the 'regex' module for full Unicode identifier support.
-import regex
-
-
 def parse_function_call_to_list(string_input):
     """
     Convert a string containing one or more function calls like '[function_name(param1="value1", param2="value2")]'
@@ -221,7 +213,6 @@ def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict
                 tool_input_args = tool_call.get("args")
                 tool_call_id_to_match = tool_call.get("id")
                 is_success = False
-                found_tool_message = False
                 for j in range(i + 1, len(messages)):
                     next_msg = messages[j]
                     if (
@@ -243,7 +234,6 @@ def format_langgraph_messages_to_steps(messages: List[BaseMessage]) -> List[Dict
                             )
                         )
 
-                        found_tool_message = True
                         break
                 cleaned_steps.append(
                     {
@@ -1183,7 +1173,8 @@ class Agentic:
                                 dataset_tools = dataset_tools_raw
                             else:
                                 logger.warning(
-                                    f"Invalid 'tools' format in dataset {ds_id} (index {current_index}). Expected List[str]. Got: {type(dataset_tools_raw)}. Using empty list."
+                                    f"Invalid 'tools' format in dataset {ds_id} (index {current_index}). "
+                                    f"Expected List[str]. Got: {type(dataset_tools_raw)}. Using empty list."
                                 )
                                 dataset_tools = []
 
@@ -1211,7 +1202,8 @@ class Agentic:
                             current_index += 1
                         else:
                             logger.warning(
-                                f"Unexpected data type at index {current_index} in dataset {ds_id}: {type(prompts_data)}. Skipping."
+                                f"Unexpected data type at index {current_index} in dataset {ds_id}: "
+                                f"{type(prompts_data)}. Skipping."
                             )
 
                     except Exception as item_err:
@@ -1376,7 +1368,8 @@ class Agentic:
 
                 if cancel_event.is_set():
                     logger.warning(
-                        f"[Agentic] Cancellation requested for prompt index {prompt_info.connector_prompt.prompt_index}."
+                        "[Agentic] Cancellation requested for prompt index "
+                        f"{prompt_info.connector_prompt.prompt_index}."
                     )
                     return None  # Return None for cancelled operations
                 # Create a new prompt info object for modification and add connector ID
@@ -1409,7 +1402,8 @@ class Agentic:
 
                     if specified_tool_names:  # Only filter if names were provided
                         logger.debug(
-                            f"Dataset specified tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {specified_tool_names}"
+                            f"Dataset specified tools for prompt {new_prompt_info.connector_prompt.prompt_index}: "
+                            f"{specified_tool_names}"
                         )
                         current_matched_tools = [
                             self.all_tools_map[name]
@@ -1420,16 +1414,19 @@ class Agentic:
                             found_names = {t.name for t in current_matched_tools}
                             missing_names = set(specified_tool_names) - found_names
                             logger.warning(
-                                f"Prompt {new_prompt_info.connector_prompt.prompt_index}: Could not find all specified tools. Missing: {missing_names}."
+                                f"Prompt {new_prompt_info.connector_prompt.prompt_index}: "
+                                f"Could not find all specified tools. Missing: {missing_names}."
                             )
                         if current_matched_tools:
                             tools_for_this_prompt = current_matched_tools
                             logger.info(
-                                f"Using SPECIFIC tools for prompt {new_prompt_info.connector_prompt.prompt_index}: {[t.name for t in tools_for_this_prompt]}"
+                                f"Using SPECIFIC tools for prompt {new_prompt_info.connector_prompt.prompt_index}: "
+                                f"{[t.name for t in tools_for_this_prompt]}"
                             )
                         else:
                             logger.warning(
-                                f"Prompt {new_prompt_info.connector_prompt.prompt_index}: None specified tools found. Using DEFAULT tools."
+                                f"Prompt {new_prompt_info.connector_prompt.prompt_index}: "
+                                f"None specified tools found. Using DEFAULT tools."
                             )
                     else:
                         logger.info(
@@ -1477,7 +1474,8 @@ class Agentic:
                             execution_time
                         )  # Ensure duration is float
                         logger.info(
-                            f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. Duration: {execution_time:.4f}s"
+                            f"Processed prompt_index {new_prompt_info.connector_prompt.prompt_index}. "
+                            f"Duration: {execution_time:.4f}s"
                         )
 
                     else:
@@ -1492,7 +1490,8 @@ class Agentic:
 
                 except Exception as e:
                     logger.error(
-                        f"[Agentic] FATAL error processing prompt index {new_prompt_info.connector_prompt.prompt_index}: {e}",
+                        "[Agentic] FATAL error processing prompt index "
+                        f"{new_prompt_info.connector_prompt.prompt_index}: {e}",
                         exc_info=True,
                     )
                     self.run_progress.notify_error(
@@ -1550,7 +1549,7 @@ class Agentic:
 
         # Final cache key combines connector ID and toolset identifier
         cache_key = f"{connector.id}:{tools_key}"
-        logger.info(f"Cache is currently unused")
+        logger.info("Cache is currently unused")
 
         # --- Create New Workflow ---
         logger.info(f"Creating new agent workflow for cache key: {cache_key}")
@@ -1907,7 +1906,8 @@ class PromptArguments(BaseModel):
                 isinstance(t, str) for t in dataset_tools
             ):
                 logger.warning(
-                    f"Invalid dataset_tools format loaded from cache. Expected List[str], got {type(dataset_tools)}. Resetting to empty list."
+                    "Invalid dataset_tools format loaded from cache. "
+                    f"Expected List[str], got {type(dataset_tools)}. Resetting to empty list."
                 )
                 dataset_tools = []
 

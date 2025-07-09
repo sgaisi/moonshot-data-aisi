@@ -21,8 +21,10 @@ class H2OGPTEConnector(Connector):
             api_key=api_key,
         )
 
-    @Connector.rate_limited  # Limits the number of calls per second made to the LLM based on a variable max_calls_per_second.
-    @perform_retry  # Performs retries based on a variable num_of_retries. Throws a ConnectionError when the number of retries is hit.
+    @Connector.rate_limited  # Limits the number of calls per second made to the LLM
+    # based on a variable max_calls_per_second.
+    @perform_retry  # Performs retries based on a variable num_of_retries.
+    # Throws a ConnectionError when the number of retries is hit.
     async def get_response(self, prompt: str) -> str:
         """
         Asynchronously sends a prompt to the H2OGPTe API and returns the generated response.

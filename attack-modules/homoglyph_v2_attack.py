@@ -15,8 +15,8 @@ class RandomHomoglyph(AttackModule):
         self.name = "Homoglyph V2 Attack"
         self.description = (
             "This module tests for adversarial textual robustness. Homoglyphs are alternative characters that resemble "
-            "a similar ASCII character.\nExample of a homoglyph fool -> fooI\nThis module slowly increases the percentage"
-            "of characters replaced to see how the model reacts to the base prompt."
+            "a similar ASCII character.\nExample of a homoglyph fool -> fooI""\nThis module slowly increases the "
+            "percentage of characters replaced to see how the model reacts to the base prompt."
         )
 
     def get_metadata(self) -> dict:
@@ -71,8 +71,8 @@ class RandomHomoglyph(AttackModule):
         prompt = list(self.prompt)
         filtered = [item for item in enum_prompt if item[1].isalpha()]
 
-        for i in range(20):
-            percentage = i / 20
+        for i in range(MAX_ITERATION):
+            percentage = i / MAX_ITERATION
             prompt_copy = prompt.copy()
             num_to_replace = int(length * percentage)
             letters_to_replace = random.sample(filtered, num_to_replace)
@@ -81,7 +81,7 @@ class RandomHomoglyph(AttackModule):
                     prompt_copy[index] = random.choice(
                         hg.Homoglyphs().get_combinations(letter)
                     )
-                except:
+                except ValueError:
                     logger.error(f"cannot get homoglyph for {letter}")
                     continue
             # homoglyph_prompt = f"[{round(percentage*100)}%]"+"".join(prompt_copy)
