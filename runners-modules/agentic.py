@@ -238,13 +238,7 @@ class ReactAgentWorkflow:
             Your thinking should be thorough. You can think step by step before and after each action you decide to take.
             If you use a function call or tool, you must plan before calling it and reflect on the outcomes of the previous function calls.
             """.strip()
-          #  \single_prompt_template = """
-          #  \  You are an agentic AI. Return only function calls or a final response.
-          #  \""".strip() 
-            #single_prompt_template = """
-            #你是一个具备行动能力的智能体。你通过制定逐步计划来协助完成请求，然后按照计划执行，必要时使用可用的工具，并不断迭代，直到问题被成功解决。你需要展示你的所有思考过程、执行步骤和采取的行动。 请持续尝试，直到你确认问题已经解决，或者确定无法解决之后，才可以结束你的回应。
-            #你的思考应当是全面的。在每次决定采取行动之前和之后，你都可以逐步进行思考。 如果你调用了某个函数或工具，你必须在调用前先进行计划，并在调用后反思该调用的结果。
-            #""".strip()
+
             if "maverick" in llm.model_name.lower():
                 logger.info("Hotfix for Llama 4 Maverick applied")
                 self.agent_executor = create_react_agent(
