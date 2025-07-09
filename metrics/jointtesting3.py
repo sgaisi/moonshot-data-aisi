@@ -389,13 +389,11 @@ class JointTesting3(MetricInterface):
         """
         Extracts agent steps from the context (log_entry from ReactAgentWorkflow)
         and formats them for the evaluation prompt.
-        "Response Generation" field is intentionally omitted from the output.
         """
         steps_for_eval_prompt: Dict[str, Any] = {}
 
         if not isinstance(context, dict):
             logger.warning(f"Context provided to _extract_steps_from_context is not a dictionary (type: {type(context)}). Steps will be incomplete.")
-            # Provide a default structure (without "Response Generation")
             return {
                 "Task Planning": "Context not available or not a dictionary.",
                 "Tool Usage": {"role": "Tool Usage", "executions": []},
@@ -443,30 +441,20 @@ class JointTesting3(MetricInterface):
             else:
                 logger.debug("No 'executed_tool_steps' dict found in agents data; Tool Usage will be empty.")
                 steps_for_eval_prompt["Tool Usage"] = {"role": "Tool Usage", "executions": []}
-            
-            # REMOVED: Response generator information - We no longer add "Response Generation"
-            # response_generator_info = agents_data.get("response_generator")
-            # if isinstance(response_generator_info, dict) and response_generator_info.get("response"):
-            #     steps_for_eval_prompt["Response Generation"] = response_generator_info["response"]
-            # else:
-            #     steps_for_eval_prompt["Response Generation"] = "Response_generator info not available."
-        
+
         else: # No 'agents' dictionary in context
             logger.warning(f"No 'agents' dictionary found in context. Steps for evaluation prompt will be minimal. Context: {str(context)[:200]}")
             steps_for_eval_prompt["Task Planning"] = "No 'agents' data in context."
             steps_for_eval_prompt["Tool Usage"] = {"role": "Tool Usage", "executions": []}
-            # REMOVED: steps_for_eval_prompt["Response Generation"] = "No 'agents' data in context."
 
         # Final result from the context root
         final_result = context.get("final_result")
         if final_result:
             steps_for_eval_prompt["Final Result"] = final_result
-        # The elif condition that relied on "Response Generation" is no longer needed here for Final Result fallback
-        # as "Response Generation" itself is removed. "final_result" from context is the primary source.
         elif "Final Result" not in steps_for_eval_prompt: # Ensure Final Result has a default if not found.
             steps_for_eval_prompt["Final Result"] = "Final result not found in context."
             
-        # Ensure essential keys (excluding "Response Generation") exist for _create_evaluation_prompt
+        # Ensure essential keys exist for _create_evaluation_prompt
         if "Task Planning" not in steps_for_eval_prompt:
             steps_for_eval_prompt["Task Planning"] = "Task planning information not available."
         if "Tool Usage" not in steps_for_eval_prompt:
@@ -477,10 +465,6 @@ class JointTesting3(MetricInterface):
         elif not isinstance(steps_for_eval_prompt["Tool Usage"].get("executions"), list):
             logger.warning("Corrected 'Tool Usage' to have an 'executions' list because it was missing or not a list.")
             steps_for_eval_prompt["Tool Usage"]["executions"] = []
-        
-        # REMOVED: Defaulting for "Response Generation"
-        # if "Response Generation" not in steps_for_eval_prompt:
-        #     steps_for_eval_prompt["Response Generation"] = "Response generation information not available."
 
         if "Final Result" not in steps_for_eval_prompt: # Redundant check if already handled above, but safe.
              steps_for_eval_prompt["Final Result"] = "Final result information not available."
@@ -550,7 +534,6 @@ class JointTesting3(MetricInterface):
             total_processed = 0
             outcomes_count = {i: 0 for i in range(1, 12)}
             refusal_summary = {"A": 0, "B": 0, "C": 0}
-            failed_dataset_ids = []
             for evaluation in evaluation_results:
                 if "evaluation" not in evaluation:
                     continue
@@ -604,8 +587,6 @@ class JointTesting3(MetricInterface):
         return judge_results
 
 
-
-        
     @timeit
     async def get_results(
         self, prompts: Any, predicted_results: Any, targets: Any, *args, **kwargs

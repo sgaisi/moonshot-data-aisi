@@ -1,22 +1,16 @@
 from __future__ import annotations
 
-import ast
 import asyncio
 import copy
 import json
 import random
 import time
-import re
 from itertools import groupby
 from operator import attrgetter
-import traceback
 from typing import Any, AsyncGenerator, Dict, Optional, List
 
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate
-from langchain.load.dump import dumps
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, BaseMessage
 from langchain_anthropic import ChatAnthropic
@@ -46,7 +40,6 @@ from pydantic import BaseModel, Field
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
-from langchain_core.messages.tool import ToolCall
 
 
 import traceback
@@ -1258,12 +1251,6 @@ class Agentic:
         # Final cache key combines connector ID and toolset identifier
         cache_key = f"{connector.id}:{tools_key}"
         logger.info(f"Cache is currently unused")
-        # Check cache
-        #if cache_key in self._agent_workflows:
-        #    logger.info(f"Cache is currently unused: {cache_key}")
-        #    agent_workflow : ReactAgentWorkflow = self._agent_workflows[cache_key]
-        #    agent_workflow.tools = tools_list
-        #    return agent_workflow
 
         # --- Create New Workflow ---
         logger.info(f"Creating new agent workflow for cache key: {cache_key}")
