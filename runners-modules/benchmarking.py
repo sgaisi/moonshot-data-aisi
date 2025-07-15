@@ -1023,4 +1023,6 @@ class PromptArguments(BaseModel):
             random_seed=cache_record[12],
             system_prompt=cache_record[13],
         )
+
+
 PromptArguments.model_rebuild()

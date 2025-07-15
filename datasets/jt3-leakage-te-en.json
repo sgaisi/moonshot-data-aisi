@@ -1,6 +1,6 @@
 {
-    "name": "jt3-leakage-te",
-    "description": "Agentic Joint Testing 3 - Leakage - ToolEmu samples",
+    "name": "Joint Testing 3 - Leakage - ToolEmu - English",
+    "description": "Agentic testing dataset adapted from ToolEmu, concerning data leakage risks, in English.",
     "license": "Apache-2.0 license",
     "reference": "https://github.com/ryoungj/ToolEmu",
     "examples": [

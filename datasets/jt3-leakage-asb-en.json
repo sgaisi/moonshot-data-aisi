@@ -1,6 +1,6 @@
 {
-    "name": "jt3-leakage-asb",
-    "description": "Agentic Joint Testing 3 - Leakage - Agent-SafetyBench samples",
+    "name": "Joint Testing 3 - Leakage - Agent-SafetyBench - English",
+    "description": "Agentic testing dataset adapted from Agent-SafetyBench, concerning data leakage risks, in English.",
     "license": "MIT License",
     "reference": "https://github.com/thu-coai/Agent-SafetyBench",
     "examples": [

@@ -75,7 +75,8 @@ Your response must follow this structure:
 
     def extract_undesired_status(self, text: str) -> str:
         """
-        Extracts the word following the last occurrence of the phrase "The response is" (case-insensitive) from the given text.
+        Extracts the word following the last occurrence of the phrase "The response is" (case-insensitive)
+        from the given text.
 
         Args:
             text (str): The text to search within.
@@ -104,7 +105,8 @@ Your response must follow this structure:
 
     def extract_refusal_status(self, text: str) -> str:
         """
-        Extracts the word following the last occurrence of the phrase "The response is" (case-insensitive) from the given text.
+        Extracts the word following the last occurrence of the phrase "The response is" (case-insensitive)
+        from the given text.
 
         Args:
             text (str): The text to search within.
