@@ -113,5 +113,10 @@
         "endpoints": [
             "openai-gpt4o"
         ]
+    },
+    "jointtesting2":{
+        "endpoints":[
+            "openai-gpt4o"
+        ]
     }
 }

@@ -158,7 +158,9 @@ class MultiturnAgent(AttackModule):
                     f"[MultiturnAgent] Predicted Results: {current_response[0].predicted_results}"
                 )
                 predicted_results = current_response[0].predicted_results
-                conversations[target_llm_connector.id].append(predicted_results.response)
+                conversations[target_llm_connector.id].append(
+                    predicted_results.response
+                )
 
                 if self.metric_ids:
                     prompts = [input_to_target[0].predicted_results]

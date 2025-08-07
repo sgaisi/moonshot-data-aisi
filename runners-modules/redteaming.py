@@ -118,20 +118,26 @@ class RedTeaming:
             for attack_strategy_args in self.runner_args.get("attack_strategies", None):
                 # load attack module with arguments
                 attack_module_attack_arguments = AttackModuleArguments(
-                    connector_ids=self.session_metadata.endpoints
-                    if self.session_metadata.endpoints
-                    else [],
+                    connector_ids=(
+                        self.session_metadata.endpoints
+                        if self.session_metadata.endpoints
+                        else []
+                    ),
                     prompt_templates=attack_strategy_args.get(
                         "prompt_template_ids", []
                     ),
                     prompt=attack_strategy_args.get("prompt", ""),
                     system_prompt=attack_strategy_args.get("system_prompt", ""),
-                    metric_ids=attack_strategy_args["metric_ids"]
-                    if "metric_ids" in attack_strategy_args
-                    else [],
-                    context_strategy_info=attack_strategy_args["context_strategy_info"]
-                    if "context_strategy_info" in attack_strategy_args
-                    else [],
+                    metric_ids=(
+                        attack_strategy_args["metric_ids"]
+                        if "metric_ids" in attack_strategy_args
+                        else []
+                    ),
+                    context_strategy_info=(
+                        attack_strategy_args["context_strategy_info"]
+                        if "context_strategy_info" in attack_strategy_args
+                        else []
+                    ),
                     db_instance=self.database_instance,
                     chat_batch_size=self.runner_args.get(
                         "chat_batch_size", RedTeamingProgress.DEFAULT_CHAT_BATCH_SIZE
@@ -261,9 +267,11 @@ class RedTeaming:
 
         yield RedTeamingPromptArguments(
             conn_id=target_llm_connector_id,
-            cs_id=self.context_strategy_instances[0].id
-            if self.context_strategy_info
-            else "",
+            cs_id=(
+                self.context_strategy_instances[0].id
+                if self.context_strategy_info
+                else ""
+            ),
             pt_id=self.prompt_templates[0] if self.prompt_templates else "",
             original_prompt=self.prompt,
             system_prompt=self.system_prompt,
@@ -388,7 +396,11 @@ class RedTeamingPromptArguments(BaseModel):
             self.original_prompt,
             self.connector_prompt.prompt,
             self.system_prompt,
-            self.connector_prompt.predicted_results.response if self.connector_prompt.predicted_results else "",
+            (
+                self.connector_prompt.predicted_results.response
+                if self.connector_prompt.predicted_results
+                else ""
+            ),
             str(self.connector_prompt.duration),
             self.start_time,
         )
@@ -413,8 +425,14 @@ class RedTeamingPromptArguments(BaseModel):
             "original_prompt": self.original_prompt,
             "prepared_prompt": self.connector_prompt.prompt,
             "system_prompt": self.system_prompt,
-            "response": self.connector_prompt.predicted_results.response if self.connector_prompt.predicted_results else "",
+            "response": (
+                self.connector_prompt.predicted_results.response
+                if self.connector_prompt.predicted_results
+                else ""
+            ),
             "duration": str(self.connector_prompt.duration),
             "start_time": self.start_time,
         }
+
+
 RedTeamingPromptArguments.model_rebuild()

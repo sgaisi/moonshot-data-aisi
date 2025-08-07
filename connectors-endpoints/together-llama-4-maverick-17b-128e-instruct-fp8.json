@@ -1,0 +1,14 @@
+{
+    "name": "Together Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "connector_type": "together-connector",
+    "uri": "",
+    "token": "",
+    "max_calls_per_second": 10,
+    "max_concurrency": 10,
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "params": {
+        "allow_retries": true,
+        "num_of_retries": 3,
+        "temperature": 0.2
+    }
+}

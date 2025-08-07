@@ -1,0 +1,14 @@
+{
+    "name": "Cookbook for AISI Joint Testing 3 - Swahili language",
+    "description": "This cookbook includes all the Swahili language data of the safety-focused testing datasets from all AISI's.",
+    "tags": [],
+    "categories": [
+        "Trust & Safety"
+    ],
+    "recipes": [
+        "jt3-all-kenyaAISI-kw",
+        "jt3-fraud-kw",
+        "jt3-fraud-franceAISI-kw",
+        "jt3-leakage-kw"
+    ]
+}

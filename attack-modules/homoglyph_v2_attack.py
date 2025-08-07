@@ -15,8 +15,8 @@ class RandomHomoglyph(AttackModule):
         self.name = "Homoglyph V2 Attack"
         self.description = (
             "This module tests for adversarial textual robustness. Homoglyphs are alternative characters that resemble "
-            "a similar ASCII character.\nExample of a homoglyph fool -> fooI\nThis module slowly increases the percentage"
-            "of characters replaced to see how the model reacts to the base prompt."
+            "a similar ASCII character.\nExample of a homoglyph fool -> fooI""\nThis module slowly increases the "
+            "percentage of characters replaced to see how the model reacts to the base prompt."
         )
 
     def get_metadata(self) -> dict:
@@ -34,11 +34,11 @@ class RandomHomoglyph(AttackModule):
             "name": self.name,
             "description": self.description if hasattr(self, "description") else "",
             "endpoints": endpoints,
-            "configurations": configurations,   
+            "configurations": configurations,
         }
-    
+
     def _get_letter_length(self, word: str) -> int:
-        return sum([1 for letter in word if letter.isalnum()]+[0])
+        return sum([1 for letter in word if letter.isalnum()] + [0])
 
     async def execute(self):
         """
@@ -71,24 +71,28 @@ class RandomHomoglyph(AttackModule):
         prompt = list(self.prompt)
         filtered = [item for item in enum_prompt if item[1].isalpha()]
 
-        for i in range(20):
-            percentage = i/20
+        for i in range(MAX_ITERATION):
+            percentage = i / MAX_ITERATION
             prompt_copy = prompt.copy()
-            num_to_replace = int(length*percentage)
+            num_to_replace = int(length * percentage)
             letters_to_replace = random.sample(filtered, num_to_replace)
             for index, letter in letters_to_replace:
                 try:
-                    prompt_copy[index] = random.choice(hg.Homoglyphs().get_combinations(letter))
-                except:
+                    prompt_copy[index] = random.choice(
+                        hg.Homoglyphs().get_combinations(letter)
+                    )
+                except ValueError:
                     logger.error(f"cannot get homoglyph for {letter}")
                     continue
             # homoglyph_prompt = f"[{round(percentage*100)}%]"+"".join(prompt_copy)
             homoglyph_prompt = "".join(prompt_copy)
             result_list.append(await self._send_prompt_to_all_llm([homoglyph_prompt]))
-        
+
         for res in result_list:
             for x in res:
-                logger.debug(f"[HomoglyphGenerator] Prompt: [{round(percentage*100)}% changed] {x.prompt}")
+                logger.debug(
+                    f"[HomoglyphGenerator] Prompt: [{round(percentage*100)}% changed] {x.prompt}"
+                )
                 logger.debug(
                     f"[HomoglyphGenerator] Predicted Results: {x.predicted_results}\n"
                 )
