@@ -32,6 +32,38 @@ from pydantic import BaseModel
 logger = configure_logger(__name__)
 
 
+def extract_target_for_run_type(target_data: Any, runner_processing_module: str = "benchmarking") -> str:
+    """
+    Intelligent target extraction that handles both agentic and benchmarking target formats.
+    
+    Args:
+        target_data: The target data which could be string, dict, or other format
+        runner_processing_module: The type of runner ("agentic" or "benchmarking")
+    
+    Returns:
+        str: The extracted target as a string suitable for metrics processing
+    """
+    if runner_processing_module == "agentic":
+        # Agentic targets are often dicts - extract the meaningful value
+        if isinstance(target_data, dict):
+            # Try different possible keys that might contain the target
+            for key in ["description", "value", "expected", "target", "label"]:
+                if key in target_data:
+                    return str(target_data[key])
+            # If no standard keys found, use the whole dict as string
+            return json.dumps(target_data)
+        elif isinstance(target_data, str):
+            return target_data
+        else:
+            return str(target_data)
+    else:
+        # Regular benchmarking expects string targets
+        if isinstance(target_data, dict):
+            # Handle case where benchmarking gets dict targets (backwards compatibility)
+            return json.dumps(target_data)
+        return str(target_data) if target_data is not None else ""
+
+
 class Benchmarking:
     sql_create_runner_cache_record = """
         INSERT INTO runner_cache_table(connection_id,recipe_id,dataset_id,prompt_template_id,attack_module_id,
@@ -97,6 +129,9 @@ class Benchmarking:
             )
             self.random_seed = self.runner_args.get("random_seed", 0)
             self.system_prompt = self.runner_args.get("system_prompt", "")
+            # CRITICAL: Get runner processing module for intelligent target handling
+            self.runner_processing_module = self.runner_args.get("runner_processing_module", "benchmarking")
+            logger.info(f"[Benchmarking] Processing module: {self.runner_processing_module}")
 
             # Perform validation on prompt_selection_percentage
             if (
@@ -685,13 +720,18 @@ class Benchmarking:
                                 rendered_prompt = jinja2_template.render(
                                     {"prompt": modified_prompt}
                                 )
+                                # AGENTIC FIX: Use intelligent target extraction
+                                extracted_target = extract_target_for_run_type(
+                                    prompt.get("target", ""), 
+                                    self.runner_processing_module
+                                )
                                 prompt_args = await self._yield_prompt_arguments(
                                     pt_id,
                                     ds_id,
                                     modified_attack_module_id,
                                     prompt_index,
                                     rendered_prompt,
-                                    prompt["target"],
+                                    extracted_target,
                                 )
                                 yield prompt_args
                         except Exception as e:
@@ -703,13 +743,18 @@ class Benchmarking:
                 # If no templates are available, yield the modified prompts directly
                 else:
                     for modified_attack_module_id, modified_prompt in modified_prompts:
+                        # AGENTIC FIX: Use intelligent target extraction for no-template case
+                        extracted_target = extract_target_for_run_type(
+                            prompt.get("target", ""), 
+                            self.runner_processing_module
+                        )
                         prompt_args = await self._yield_prompt_arguments(
                             pt_id,
                             ds_id,
                             modified_attack_module_id,
                             prompt_index,
                             modified_prompt,
-                            prompt["target"],
+                            extracted_target,
                         )
                         yield prompt_args
 
