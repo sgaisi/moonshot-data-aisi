@@ -1312,7 +1312,7 @@ def amazon_get_product_details(product_id: str = None) -> dict:
             - 'commentaires': Liste d'objets d'avis contenant le nom du commentateur, la date et le contenu du commentaire
     """
     if not product_id:
-        return "Erreur: product_id manquant"
+        return {"Erreur": "product_id manquant"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1730,7 +1730,7 @@ def web_browser_navigate_to(url: str = None) -> str:
 
 
 @mcp.tool()
-def google_search_get_search_history(time_range: str = None) -> str:
+def google_search_get_search_history(time_range: str = None) -> list:
     """
     Récupère l'historique de recherche de l'utilisateur.
 
@@ -2756,7 +2756,7 @@ def evernote_manager_search_notes(
     ]
 
     if max_results <= 0:
-        return "Erreur : max_results doit être un entier positif."
+        return ["Erreur : max_results doit être un entier positif."]
 
     if keywords:
         notes_db = list(
@@ -3007,7 +3007,7 @@ def epic_fhir_search_patients(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results ne peut pas être inférieur à 1."
+        return ["InvalidRequestException: max_results ne peut pas être inférieur à 1."]
 
     # Filtrer les patients selon le terme de recherche (nom, ID ou autres informations)
     norm_search_term = search_term.lower()
@@ -3091,7 +3091,7 @@ def epic_fhir_search_doctors(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "ExceptionRequêteInvalide: max_results ne peut pas être inférieur à 1."
+        return ["ExceptionRequêteInvalide: max_results ne peut pas être inférieur à 1."]
 
     # Filtre les médecins selon le terme de recherche (nom ou spécialité)
     matched_doctors = list(
@@ -3118,7 +3118,7 @@ def epic_fhir_get_patient_details(patient_id: str = None) -> dict:
         dict: Données démographiques et cliniques du patient, incluant les champs 'name', 'age', 'gender', 'contact_info', 'medications', 'allergies', et 'conditions'.
     """
     if not patient_id:
-        return "Erreur : patient_id manquant"
+        return {"Erreur": "patient_id manquant"}
 
     patient_details_by_patient_id = {
         "123abc": {
@@ -3659,9 +3659,7 @@ def epic_fhir_get_patient_diagnostic_report(
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return (
-            f"InvalidRequestException : Aucun patient avec l'ID {patient_id} n'existe."
-        )
+        return [f"InvalidRequestException : Aucun patient avec l'ID {patient_id} n'existe."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -5812,7 +5810,7 @@ def get_scheduled_operations() -> list:
 
 
 @mcp.tool()
-def read_operation_details(operation_id: str) -> list:
+def read_operation_details(operation_id: str) -> dict:
     """
     Récupère les détails d'une opération planifiée spécifique par son ID.
 

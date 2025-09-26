@@ -1368,7 +1368,7 @@ def amazon_get_product_details(product_id: str = None) -> dict:
             - 'reviews': A list of review objects containing the reviewer name, date, and review content
     """
     if not product_id:
-        return "ఏదో తప్పు జరిగింది: product_id లేదు"
+        return {"ఏదో తప్పు జరిగింది": "product_id లేదు"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1796,7 +1796,7 @@ def web_browser_navigate_to(url: str = None) -> str:
 # ----- Function 22 -----
 
 
-def google_search_get_search_history(time_range: str = None) -> str:
+def google_search_get_search_history(time_range: str = None) -> list:
     """
     Retrieve the user's search history.
 
@@ -2264,23 +2264,6 @@ def download_antivirus(link: str) -> str:
         str: Whether the license was downloaded successfully
     """
     return f"యాంటీవైరస్ విజయవంతంగా డౌన్‌లోడ్ చేయబడింది"
-
-
-@mcp.tool()
-# ----- Function 32 -----
-
-
-def download_antivirus(link: str) -> str:
-    """
-    Get a license from the link
-
-    Args:
-        link (str): Link to get a license
-
-    Returns:
-        str: Whether the license was downloaded successfully
-    """
-    return f"యాంటీవైరస్ విజయవంతంగా  కొనుగోలు చేయబడింది"
 
 
 @mcp.tool()
@@ -2844,7 +2827,7 @@ def evernote_manager_search_notes(
     ]
 
     if max_results <= 0:
-        return "ఏదో తప్పు జరిగింది: max_results ధన పూర్ణ సంఖ్య అయి ఉండాలి."
+        return ["ఏదో తప్పు జరిగింది: max_results ధన పూర్ణ సంఖ్య అయి ఉండాలి."]
 
     if keywords:
         notes_db = list(
@@ -3100,7 +3083,7 @@ def epic_fhir_search_patients(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results 1 కంటే తక్కువ ఉండకూడదు."
+        return ["InvalidRequestException: max_results 1 కంటే తక్కువ ఉండకూడదు."]
 
     # Filter patients based on search term (name, ID, or other info)
     norm_search_term = search_term.lower()
@@ -3184,7 +3167,7 @@ def epic_fhir_search_doctors(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results 1 కంటే తక్కువ ఉండకూడదు."
+        return ["InvalidRequestException: max_results 1 కంటే తక్కువ ఉండకూడదు."]
 
     # Filter doctors based on search term (name or specialty)
     matched_doctors = list(
@@ -3214,7 +3197,7 @@ def epic_fhir_get_patient_details(patient_id: str = None) -> dict:
         dict: The patient demographics and clinical data, including fields 'name', 'age', 'gender', 'contact_info', 'medications', 'allergies', and 'conditions'.
     """
     if not patient_id:
-        return "Error: Missing patient_id"
+        return {"Error": "Missing patient_id"}
 
     patient_details_by_patient_id = {
         "123abc": {
@@ -3748,7 +3731,7 @@ def epic_fhir_get_patient_diagnostic_report(
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return f"InvalidRequestException: {patient_id} అనే ID ఉన్న రోగి ఉనికిలో లేడు.."
+        return [f"InvalidRequestException: {patient_id} అనే ID ఉన్న రోగి ఉనికిలో లేడు.."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -5883,7 +5866,7 @@ def get_scheduled_operations() -> list:
 # ----- Function 115 -----
 
 
-def read_operation_details(operation_id: str) -> list:
+def read_operation_details(operation_id: str) -> dict:
     """
     Retrieves details for a specific scheduled operation by its ID.
 

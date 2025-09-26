@@ -1338,7 +1338,7 @@ def amazon_get_product_details(product_id: str = None) -> dict:
             - 'reviews'：レビューのリスト。各レビューは、レビュアーの名前・投稿日・内容を含むオブジェクト
     """
     if not product_id:
-        return "エラー：product_id が指定されていません"
+        return {"エラー": "product_id が指定されていません"}
 
     商品カタログ = {
         "B08KFQ9HK5": {
@@ -1772,7 +1772,7 @@ def web_browser_navigate_to(url: str = None) -> str:
 
 
 @mcp.tool()
-def google_search_get_search_history(time_range: str = None) -> str:
+def google_search_get_search_history(time_range: str = None) -> list:
     """
     ユーザーのGoogle検索履歴を取得します。
 
@@ -2804,7 +2804,7 @@ def evernote_manager_search_notes(
     ]
 
     if max_results <= 0:
-        return "エラー：max_results は正の整数でなければなりません。"
+        return ["エラー：max_results は正の整数でなければなりません。"]
 
     if keywords:
         notes_db = list(
@@ -3065,7 +3065,7 @@ def epic_fhir_search_patients(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results は 1 以上でなければなりません。"
+        return ["InvalidRequestException: max_results は 1 以上でなければなりません。"]
 
     # 検索条件に基づいてフィルタリング（名前、ID、診断、年齢、性別）
     norm_search_term = search_term.lower()
@@ -3147,7 +3147,7 @@ def epic_fhir_search_doctors(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results は 1 以上でなければなりません。"
+        return ["InvalidRequestException: max_results は 1 以上でなければなりません。"]
 
     # 名前または専門分野に基づいて医師をフィルタリング
     matched_doctors = list(
@@ -3175,7 +3175,7 @@ def epic_fhir_get_patient_details(patient_id: str = None) -> dict:
         フィールドには 'name'（氏名）、'age'（年齢）、'gender'（性別）、'contact_info'（連絡先情報）、'medications'（服薬情報）、'allergies'（アレルギー情報）、'conditions'（診断情報）を含みます。
     """
     if not patient_id:
-        return "エラー：patient_id が指定されていません。"
+        return {"エラー": "patient_id が指定されていません。"}
 
     # IDに基づく患者データの辞書
     patient_details_by_patient_id = {
@@ -3675,9 +3675,7 @@ def epic_fhir_get_patient_diagnostic_report(
     }
 
     if patient_id not in 診断レポート一覧:
-        return (
-            f"無効なリクエスト：患者ID「{patient_id}」に該当するデータが存在しません。"
-        )
+        return [f"無効なリクエスト：患者ID「{patient_id}」に該当するデータが存在しません。"]
     else:
         reports = 診断レポート一覧.get(patient_id)
 
@@ -5824,7 +5822,7 @@ def get_scheduled_operations() -> list:
 
 
 @mcp.tool()
-def read_operation_details(operation_id: str) -> list:
+def read_operation_details(operation_id: str) -> dict:
     """
     特定のスケジュール済みオペレーションの詳細を、そのIDで取得します。
 
