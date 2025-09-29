@@ -11,7 +11,8 @@ for src_dir in "${src_dir_list[@]}"; do
 done
 
 set +e
-flake8 --format=html --htmldir=flake8-report --count  $src_dirs > flake8-report.txt
+# Allow long lines (E501) due to LLM prompts
+flake8 --ignore=E501,W503 --format=html --htmldir=flake8-report --count  $src_dirs > flake8-report.txt
 cat flake8-report.txt
 exit_code=$?
 
