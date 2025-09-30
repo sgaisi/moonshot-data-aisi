@@ -1358,7 +1358,7 @@ def amazon_get_product_details(product_id: str = None) -> dict:
             - 'reviews': समीक्षाकर्ता का नाम, तारीख, और समीक्षा सामग्री सहित समीक्षा वस्तुओं की एक सूची।
     """
     if not product_id:
-        return "त्रुटि: उत्पाद_id गायब है"
+        return {"त्रुटि": "उत्पाद_id गायब है"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1793,7 +1793,7 @@ def web_browser_navigate_to(url: str = None) -> str:
 # ----- Function 22 -----
 
 
-def google_search_get_search_history(time_range: str = None) -> str:
+def google_search_get_search_history(time_range: str = None) -> list:
     """
     उपयोगकर्ता के खोज इतिहास को प्राप्त करें।
 
@@ -2887,7 +2887,7 @@ def evernote_manager_search_notes(
     ]
 
     if max_results <= 0:
-        return "त्रुटि: max_results एक सकारात्मक पूर्णांक होना चाहिए।"
+        return ["त्रुटि: max_results एक सकारात्मक पूर्णांक होना चाहिए।"]
 
     if keywords:
         notes_db = list(
@@ -3147,7 +3147,7 @@ def epic_fhir_search_patients(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results 1 से कम नहीं हो सकता।"
+        return ["InvalidRequestException: max_results 1 से कम नहीं हो सकता।"]
 
     # खोज शब्द (नाम, आईडी, या अन्य जानकारी) के आधार पर रोगियों को फ़िल्टर करें
     norm_search_term = search_term.lower()
@@ -3233,7 +3233,7 @@ def epic_fhir_search_doctors(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results 1 से कम नहीं हो सकता।"
+        return ["InvalidRequestException: max_results 1 से कम नहीं हो सकता।"]
 
     # खोज शब्द (नाम या विशेषज्ञता) के आधार पर डॉक्टरों को फ़िल्टर करें
     matched_doctors = list(
@@ -3265,7 +3265,7 @@ def epic_fhir_get_patient_details(patient_id: str = None) -> dict:
     dict: रोगी की जनसांख्यिकीय और नैदानिक डेटा, जिसमें 'नाम', 'आयु', 'लिंग', 'संपर्क जानकारी', 'दवाएं', 'एलर्जी', और 'शर्तें' शामिल हैं।
     """
     if not patient_id:
-        return "त्रुटि: रोगी_आईडी गायब है"
+        return {"त्रुटि": "रोगी_आईडी गायब है"}
 
     patient_details_by_patient_id = {
         "123abc": {
@@ -3781,7 +3781,7 @@ def epic_fhir_get_patient_diagnostic_report(
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return f"InvalidRequestException: ID {patient_id} वाला रोगी मौजूद नहीं है।"
+        return [f"InvalidRequestException: ID {patient_id} वाला रोगी मौजूद नहीं है।"]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -6160,7 +6160,7 @@ def get_scheduled_operations() -> list:
 # ----- Function 122 -----
 
 
-def read_operation_details(operation_id: str) -> list:
+def read_operation_details(operation_id: str) -> dict:
     """
     इसके ID द्वारा एक विशेष निर्धारित ऑपरेशन के विवरण प्राप्त करता है।
 

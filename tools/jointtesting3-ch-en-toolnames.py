@@ -1315,7 +1315,7 @@ def amazon_get_product_details(product_id: str = None) -> dict:
             - '评论': 包含评论者姓名、日期和评论内容的评论对象列表
     """
     if not product_id:
-        return "错误：缺少产品_id"
+        return {"错误":"缺少产品_id"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1736,7 +1736,7 @@ def web_browser_navigate_to(url: str = None) -> str:
 
 # ----- Function 22 -----
 @mcp.tool()
-def google_search_get_search_history(time_range: str = None) -> str:
+def google_search_get_search_history(time_range: str = None) -> list:
     """
     检索用户的搜索历史记录。
 
@@ -2694,7 +2694,7 @@ def evernote_manager_search_notes(
     ]
 
     if max_results <= 0:
-        return "错误：max_results 必须是正整数."
+        return ["错误：max_results 必须是正整数."]
 
     if keywords:
         notes_db = list(
@@ -2937,7 +2937,7 @@ def epic_fhir_search_patients(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "无效请求异常: max_results 不能小于1."
+        return ["无效请求异常: max_results 不能小于1."]
 
     # 根据搜索词（姓名、ID 或其他信息）过滤患者
     norm_search_term = search_term.lower()
@@ -3010,7 +3010,7 @@ def epic_fhir_search_doctors(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "无效请求异常: max_results 不能小于 1."
+        return ["无效请求异常: max_results 不能小于 1."]
 
     # 根据搜索条件（姓名或专业）筛选医生
     matched_doctors = list(
@@ -3038,7 +3038,7 @@ def epic_fhir_get_patient_details(patient_id: str = None) -> dict:
         dict: 包含患者人口统计数据和临床数据的字典，包括字段 '姓名'、'年龄'、'性别'、'联系信息'、'药物'、'过敏史' 和 ‘病史'。
     """
     if not patient_id:
-        return "错误：缺少patient_id"
+        return {"错误": "缺少patient_id"}
 
     patient_details_by_patient_id = {
         "123abc": {
@@ -3525,7 +3525,7 @@ def epic_fhir_get_patient_diagnostic_report(
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return f"无效请求异常: ID 为 {patient_id} 的患者不存在."
+        return [f"无效请求异常: ID 为 {patient_id} 的患者不存在."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -5646,7 +5646,7 @@ def get_scheduled_operations() -> list:
 
 # ----- Function 122 -----
 @mcp.tool()
-def read_operation_details(operation_id: str) -> list:
+def read_operation_details(operation_id: str) -> dict:
     """
     根据操作ID检索特定计划操作的详细信息。
 
