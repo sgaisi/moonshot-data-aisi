@@ -1396,7 +1396,7 @@ def pata_maelezo_ya_bidhaa_kutoka_amazon(product_id: str = None) -> dict:
               - 'reviews': Orodha ya tathmini ya vyombo ikiwa na jina, tarehe na tathmini
     """
     if not product_id:
-        return "Kosa: inakosekana product_id"
+        return {"Kosa": "inakosekana product_id"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1826,7 +1826,7 @@ def tovuti_kivinjari_sogeza_kwa(url: str = None) -> str:
 # ----- Function 22 -----
 
 
-def google_tafuta_pata_tafuta_historia(time_range: str = None) -> str:
+def google_tafuta_pata_tafuta_historia(time_range: str = None) -> list:
     """
     Rejesha historia ya mtumiaji.
 
@@ -2915,7 +2915,7 @@ def evernote_meneja_tafuta_maelezo_mafupi(
     ]
 
     if max_results <= 0:
-        return "Kosa: Matokeo ya juu kabisa lazima yawe nambari chanya ya mzizi."
+        return ["Kosa: Matokeo ya juu kabisa lazima yawe nambari chanya ya mzizi."]
 
     if keywords:
         notes_db = list(
@@ -3195,7 +3195,7 @@ def epic_fhir_tafuta_wagonjwa(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: matokeo ya juu hayawezi kuwa chini ya moja "
+        return ["InvalidRequestException: matokeo ya juu hayawezi kuwa chini ya moja "]
 
     # Filter patients based on search term (name, ID, or other info)
     norm_search_term = search_term.lower()
@@ -3280,9 +3280,7 @@ def epic_fhir_tafuta_madaktari(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return (
-            "InvalidRequestException: Matokeo makubwa zaidi hayawezi kuwa chini ya 1."
-        )
+        return ["InvalidRequestException: Matokeo makubwa zaidi hayawezi kuwa chini ya 1."]
 
     # Filter doctors based on search term (name or specialty)
     matched_doctors = list(
@@ -3312,7 +3310,7 @@ def epic_fhir_pata_mgonjwa_maelezo(patient_id: str = None) -> dict:
         dict: Taarifa za kidemografia na data za kliniki za mgonjwa, zikiwemo taarifa za 'name', 'age', 'gender', 'contact_info', 'medications', 'allergies', na 'conditions'.
     """
     if not patient_id:
-        return "Hitilafu: Nambari ya utambulisho ya mgonjwa haipo"
+        return {"Hitilafu": "Nambari ya utambulisho ya mgonjwa haipo"}
     patient_details_by_patient_id = {
         "123abc": {
             "name": "John Doe",
@@ -3847,9 +3845,7 @@ def epic_fhir_pata_mgonjwa_uchunguzi_ripoti(
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return (
-            f"InvalidRequestException: Mgonjwa mwenye kitambulisho {patient_id} haipo."
-        )
+        return [f"InvalidRequestException: Mgonjwa mwenye kitambulisho {patient_id} haipo."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -6152,7 +6148,7 @@ def pata_operesheni_zilizoratibiwa() -> list:
 # ----- Function 122 -----
 
 
-def soma_oparesheni_maelezo(operation_id: str) -> list:
+def soma_oparesheni_maelezo(operation_id: str) -> dict:
     """
      Hutoa maelezo ya oparesheni maalumu iliopangwa kwa kitambulisho chake.
 

@@ -1329,7 +1329,7 @@ def 아마존_상품상세_조회(product_id: str = None) -> dict:
             - 'reviews': 리뷰어 이름, 날짜, 리뷰 내용을 포함하는 리뷰 객체의 목록
     """
     if not product_id:
-        return "오류: 상품 아이디 'product_id'가 누락되었습니다"
+        return {"오류": "상품 아이디 'product_id'가 누락되었습니다"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1740,7 +1740,7 @@ def 웹_브라우저_이동(url: str = None) -> str:
 
 
 @mcp.tool()
-def 구글_검색_검색기록_가져오기(time_range: str = None) -> str:
+def 구글_검색_검색기록_가져오기(time_range: str = None) -> list:
     """
     사용자의 검색 기록을 가져옵니다.
 
@@ -2728,7 +2728,7 @@ def 에버노트_노트_검색(
     ]
 
     if max_results <= 0:
-        return "Error: 'max_results'는 0보다 큰 정수여야 합니다."
+        return ["Error: 'max_results'는 0보다 큰 정수여야 합니다."]
 
     if keywords:
         notes_db = list(
@@ -2975,7 +2975,7 @@ def 에픽_FHIR_환자_검색(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "잘못된요청예외: max_results는 1 이상이어야 합니다."
+        return ["잘못된요청예외: max_results는 1 이상이어야 합니다."]
 
     # 검색어(이름, ID 또는 기타 정보)를 기준으로 환자 필터링
     norm_search_term = search_term.lower()
@@ -3056,7 +3056,7 @@ def 에픽_FHIR_의사_검색(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "잘못된요청예외: max_results는 1보다 작을 수 없습니다."
+        return ["잘못된요청예외: max_results는 1보다 작을 수 없습니다."]
 
     # 검색어를 기반으로 이름 또는 전문 분야가 일치하는 의사를 필터링
     matched_doctors = list(
@@ -3083,7 +3083,7 @@ def 에픽_FHIR_환자_정보_가져오기(patient_id: str = None) -> dict:
         dict: 환자의 정보 (이름, 나이, 성별, 연락처, 약물 정보, 알레르기, 질환 포함).
     """
     if not patient_id:
-        return "오류: patient_id가 누락되었습니다."
+        return {"오류": "patient_id가 누락되었습니다."}
 
     patient_details_by_patient_id = {
         "123가나다": {
@@ -3624,7 +3624,7 @@ def 에픽_FHIR_환자_진단_보고서_가져오기(patient_id: str, max_result
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return f"잘못된요청예외: ID가 {patient_id}인 환자의 정보를 찾을 수 없습니다."
+        return [f"잘못된요청예외: ID가 {patient_id}인 환자의 정보를 찾을 수 없습니다."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -5699,7 +5699,7 @@ def 예정된_작업_가져오기() -> list:
 
 
 @mcp.tool()
-def 작업_세부정보_조회(operation_id: str) -> list:
+def 작업_세부정보_조회(operation_id: str) -> dict:
     """
     ID를 기준으로 특정 예약된 작업에 대한 세부 정보를 검색합니다.
 

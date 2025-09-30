@@ -1347,7 +1347,7 @@ def amazon_get_product_details(product_id: str = None) -> dict:
             - 'reviews': A list of review objects containing the reviewer name, date, and review content
     """
     if not product_id:
-        return "Error: Missing product_id"
+        return {"Error": "Missing product_id"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1765,7 +1765,7 @@ def web_browser_navigate_to(url: str = None) -> str:
 
 
 @mcp.tool()
-def google_search_get_search_history(time_range: str = None) -> str:
+def google_search_get_search_history(time_range: str = None) -> list:
     """
     Retrieve the user's search history.
 
@@ -2782,7 +2782,7 @@ def evernote_manager_search_notes(
     ]
 
     if max_results <= 0:
-        return "Error: The max_results must be a positive integer."
+        return ["Error: The max_results must be a positive integer."]
 
     if keywords:
         notes_db = list(
@@ -3031,7 +3031,7 @@ def epic_fhir_search_patients(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results cannot be less than 1."
+        return ["InvalidRequestException: max_results cannot be less than 1."]
 
     # Filter patients based on search term (name, ID, or other info)
     norm_search_term = search_term.lower()
@@ -3112,7 +3112,7 @@ def epic_fhir_search_doctors(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "InvalidRequestException: max_results cannot be less than 1."
+        return ["InvalidRequestException: max_results cannot be less than 1."]
 
     # Filter doctors based on search term (name or specialty)
     matched_doctors = list(
@@ -3139,7 +3139,7 @@ def epic_fhir_get_patient_details(patient_id: str = None) -> dict:
         dict: The patient demographics and clinical data, including fields 'name', 'age', 'gender', 'contact_info', 'medications', 'allergies', and 'conditions'.
     """
     if not patient_id:
-        return "Error: Missing patient_id"
+        return {"Error": "Missing patient_id"}
 
     patient_details_by_patient_id = {
         "123abc": {
@@ -3670,7 +3670,7 @@ def epic_fhir_get_patient_diagnostic_report(
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return f"InvalidRequestException: Patient with ID {patient_id} does not exist."
+        return [f"InvalidRequestException: Patient with ID {patient_id} does not exist."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -5777,7 +5777,7 @@ def get_scheduled_operations() -> list:
 
 
 @mcp.tool()
-def read_operation_details(operation_id: str) -> list:
+def read_operation_details(operation_id: str) -> dict:
     """
     Retrieves details for a specific scheduled operation by its ID.
 

@@ -1316,7 +1316,7 @@ def 亚马逊_获取_产品_详情(product_id: str = None) -> dict:
             - '评论': 包含评论者姓名、日期和评论内容的评论对象列表
     """
     if not product_id:
-        return "错误：缺少产品_id"
+        return {"错误":"缺少产品_id"}
 
     product_catalog = {
         "B08KFQ9HK5": {
@@ -1737,7 +1737,7 @@ def 网络_浏览器_导航_到(url: str = None) -> str:
 
 # ----- Function 22 -----
 @mcp.tool()
-def 谷歌_搜索_获取_搜索_历史(time_range: str = None) -> str:
+def 谷歌_搜索_获取_搜索_历史(time_range: str = None) -> list:
     """
     检索用户的搜索历史记录。
 
@@ -2695,7 +2695,7 @@ def 印象笔记_管理器_搜索_笔记(
     ]
 
     if max_results <= 0:
-        return "错误：max_results 必须是正整数."
+        return ["错误：max_results 必须是正整数."]
 
     if keywords:
         notes_db = list(
@@ -2936,7 +2936,7 @@ def epic_fhir_搜索_患者(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "无效请求异常: max_results 不能小于1."
+        return ["无效请求异常: max_results 不能小于1."]
 
     # 根据搜索词（姓名、ID 或其他信息）过滤患者
     norm_search_term = search_term.lower()
@@ -3009,7 +3009,7 @@ def epic_fhir_搜索_医生(search_term: str, max_results: int = 10) -> list:
     ]
 
     if max_results <= 0:
-        return "无效请求异常: max_results 不能小于 1."
+        return ["无效请求异常: max_results 不能小于 1."]
 
     # 根据搜索条件（姓名或专业）筛选医生
     matched_doctors = list(
@@ -3037,7 +3037,7 @@ def epic_fhir_获取_患者_详细信息(patient_id: str = None) -> dict:
         dict: 包含患者人口统计数据和临床数据的字典，包括字段 '姓名'、'年龄'、'性别'、'联系信息'、'药物'、'过敏史' 和 ‘病史'。
     """
     if not patient_id:
-        return "错误：缺少patient_id"
+        return {"错误": "缺少patient_id"}
 
     patient_details_by_patient_id = {
         "123abc": {
@@ -3522,7 +3522,7 @@ def epic_fhir_获取_患者_诊断_报告(patient_id: str, max_results: int = 10
     }
 
     if patient_id not in diagnostic_reports_by_patient_id:
-        return f"无效请求异常: ID 为 {patient_id} 的患者不存在."
+        return [f"无效请求异常: ID 为 {patient_id} 的患者不存在."]
     else:
         reports = diagnostic_reports_by_patient_id.get(patient_id)
 
@@ -5653,7 +5653,7 @@ def 获取_计划_操作() -> list:
 
 # ----- Function 122 -----
 @mcp.tool()
-def 读取_操作_详情(operation_id: str) -> list:
+def 读取_操作_详情(operation_id: str) -> dict:
     """
     根据操作ID检索特定计划操作的详细信息。
 
