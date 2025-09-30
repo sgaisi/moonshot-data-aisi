@@ -1,14 +1,12 @@
 {
-    "name": "Cookbook for AISI Joint Testing 3 - French language",
-    "description": "This cookbook includes all the French language data of the safety-focused testing datasets from all AISI's.",
-    "tags": [],
-    "categories": [
-        "Trust & Safety"
-    ],
-    "recipes": [
-        "jt3-all-kenyaAISI-fr",
-        "jt3-fraud-fr",
-        "jt3-fraud-franceAISI-fr",
-        "jt3-leakage-fr"
-    ]
+  "name": "Cookbook for AISI Joint Testing 3 - French language",
+  "description": "This cookbook includes all the French language data of the safety-focused testing datasets from all AISI's.",
+  "tags": ["agentic"],
+  "categories": ["Trust & Safety"],
+  "recipes": [
+    "jt3-all-kenyaAISI-fr",
+    "jt3-fraud-fr",
+    "jt3-fraud-franceAISI-fr",
+    "jt3-leakage-fr"
+  ]
 }
